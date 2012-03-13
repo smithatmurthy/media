@@ -27,3 +27,13 @@ struct platform_device exynos_device_drm = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	}
 };
+
+static u64 exynos_hdmi_drm_dma_mask = DMA_BIT_MASK(32);
+
+struct platform_device exynos_device_hdmi_drm = {
+        .name   = "exynos-drm-hdmi",
+        .dev    = {
+                .dma_mask               = &exynos_hdmi_drm_dma_mask,
+                .coherent_dma_mask      = DMA_BIT_MASK(32),
+        },
+};
