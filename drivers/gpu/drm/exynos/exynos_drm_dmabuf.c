@@ -60,6 +60,30 @@ out:
 	return NULL;
 }
 
+static void *exynos_gem_dmabuf_kmap(struct dma_buf *dmabuf, unsigned long pg)
+{
+	struct drm_gem_object *obj = dmabuf->priv;
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	return exynos_gem_obj->buffer->kvaddr + pg * PAGE_SIZE;
+}
+
+static void *exynos_gem_dmabuf_vmap(struct dma_buf *dmabuf)
+{
+	struct drm_gem_object *obj = dmabuf->priv;
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	return exynos_gem_obj->buffer->kvaddr;
+}
+
 static struct sg_table *
 		exynos_gem_map_dma_buf(struct dma_buf_attachment *attach,
 					enum dma_data_direction dir)
@@ -133,35 +157,6 @@ static void exynos_dmabuf_release(struct dma_buf *dmabuf)
 	}
 }
 
-static void *exynos_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-						unsigned long page_num)
-{
-	/* TODO */
-
-	return NULL;
-}
-
-static void exynos_gem_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-						unsigned long page_num,
-						void *addr)
-{
-	/* TODO */
-}
-
-static void *exynos_gem_dmabuf_kmap(struct dma_buf *dma_buf,
-					unsigned long page_num)
-{
-	/* TODO */
-
-	return NULL;
-}
-
-static void exynos_gem_dmabuf_kunmap(struct dma_buf *dma_buf,
-					unsigned long page_num, void *addr)
-{
-	/* TODO */
-}
-
 static int exynos_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 	struct vm_area_struct *vma)
 {
@@ -172,9 +167,8 @@ static struct dma_buf_ops exynos_dmabuf_ops = {
 	.map_dma_buf		= exynos_gem_map_dma_buf,
 	.unmap_dma_buf		= exynos_gem_unmap_dma_buf,
 	.kmap			= exynos_gem_dmabuf_kmap,
-	.kmap_atomic		= exynos_gem_dmabuf_kmap_atomic,
-	.kunmap			= exynos_gem_dmabuf_kunmap,
-	.kunmap_atomic		= exynos_gem_dmabuf_kunmap_atomic,
+	.kmap_atomic		= exynos_gem_dmabuf_kmap,
+	.vmap			= exynos_gem_dmabuf_vmap,
 	.mmap			= exynos_gem_dmabuf_mmap,
 	.release		= exynos_dmabuf_release,
 };
