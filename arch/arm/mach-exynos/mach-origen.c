@@ -20,6 +20,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 #include <linux/mfd/max8997.h>
 #include <linux/lcd.h>
 #include <linux/rfkill-gpio.h>
@@ -31,6 +32,7 @@
 
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
+#include <media/s5p_hdmi.h>
 
 #include <plat/regs-serial.h>
 #include <plat/cpu.h>
@@ -95,6 +97,38 @@ static struct s3c2410_uartcfg origen_uartcfgs[] __initdata = {
 		.ufcon		= ORIGEN_UFCON_DEFAULT,
 	},
 };
+
+enum fixed_regulator_id {
+	FIXED_REG_ID_HDMI_5V,
+};
+
+static struct regulator_consumer_supply hdmi_fixed_consumer =
+	REGULATOR_SUPPLY("hdmi-en", "exynos4-hdmi");
+
+static struct regulator_init_data hdmi_fixed_voltage_init_data = {
+	.constraints		= {
+		.name		= "HDMI_5V",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &hdmi_fixed_consumer,
+};
+
+static struct fixed_voltage_config hdmi_fixed_voltage_config = {
+	.supply_name		= "HDMI_EN1",
+	.microvolts		= 5000000,
+	.gpio			= -EINVAL,
+	.init_data		= &hdmi_fixed_voltage_init_data,
+};
+
+static struct platform_device hdmi_fixed_voltage = {
+	.name			= "reg-fixed-voltage",
+	.id			= FIXED_REG_ID_HDMI_5V,
+	.dev			= {
+		.platform_data	= &hdmi_fixed_voltage_config,
+	},
+};
+
 
 static struct regulator_consumer_supply __initdata ldo3_consumer[] = {
 	REGULATOR_SUPPLY("vddcore", "s5p-mipi-csis.0"), /* MIPI */
@@ -698,6 +732,7 @@ static struct platform_device origen_device_bluetooth = {
 };
 
 static struct platform_device *origen_devices[] __initdata = {
+	&hdmi_fixed_voltage,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc0,
 	&s3c_device_i2c0,
@@ -722,6 +757,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mixer,
 #ifdef CONFIG_DRM_EXYNOS
 	&exynos_device_drm,
+	&exynos_device_hdmi_drm,
 #endif
 	&exynos4_device_ohci,
 	&origen_device_gpiokeys,
@@ -751,17 +787,32 @@ static void __init origen_bt_setup(void)
 	s3c_gpio_setpull(EXYNOS4_GPX2(2), S3C_GPIO_PULL_NONE);
 }
 
+static struct exynos_drm_common_hdmi_pd drm_common_hdmi_pd = {
+	.hdmi_dev       = &s5p_device_hdmi.dev,
+	.mixer_dev      = &s5p_device_mixer.dev,
+};
+
 /* I2C module and id for HDMIPHY */
-static struct i2c_board_info hdmiphy_info = {
-	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
+static struct i2c_board_info s5p_hdmiphy_info = {
+	I2C_BOARD_INFO("s5p_hdmiphy", 0x38),
+};
+
+static struct s5p_hdmi_platform_data s5p_hdmi_pdata = {
+	.hdmiphy_info = &s5p_hdmiphy_info,
+	.hdmiphy_bus = 8,
+	.hpd_gpio = EXYNOS4_GPX3(7),
 };
 
 static void s5p_tv_setup(void)
 {
-	/* Direct HPD to HDMI chip */
-	gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug");
-	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
-	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(s5p_hdmi_pdata.hpd_gpio, S3C_GPIO_PULL_NONE);
+
+	/* setting platform data */
+	s5p_device_hdmi.dev.platform_data = &s5p_hdmi_pdata;
+	exynos_device_hdmi_drm.dev.platform_data = &drm_common_hdmi_pd;
+#if CONFIG_DRM_EXYNOS
+	i2c_register_board_info(8, &s5p_hdmiphy_info, 1);
+#endif
 }
 
 static void __init origen_map_io(void)
@@ -805,7 +856,6 @@ static void __init origen_machine_init(void)
 
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
-	s5p_hdmi_set_platdata(&hdmiphy_info, NULL, 0);
 
 #ifdef CONFIG_DRM_EXYNOS
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
