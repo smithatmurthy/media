@@ -208,11 +208,13 @@ static void drm_hdmi_dpms(struct device *subdrv_dev, int mode)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	/* HDMI is started BEFORE mixer due to clock and power dependencies */
+	if (hdmi_ops && hdmi_ops->dpms)
+		hdmi_ops->dpms(ctx->hdmi_ctx->ctx, mode);
+
 	if (mixer_ops && mixer_ops->dpms)
 		mixer_ops->dpms(ctx->mixer_ctx->ctx, mode);
 
-	if (hdmi_ops && hdmi_ops->dpms)
-		hdmi_ops->dpms(ctx->hdmi_ctx->ctx, mode);
 }
 
 static void drm_hdmi_apply(struct device *subdrv_dev)
