@@ -475,6 +475,14 @@ static struct i2c_board_info i2c0_devs[] __initdata = {
 	},
 };
 
+/* I2C6 */
+static struct i2c_board_info i2c6_devs[] __initdata = {
+	{
+		/* HDMI DDC */
+		I2C_BOARD_INFO("s5p_ddc", 0x72 >> 1),
+	},
+};
+
 static struct s3c_sdhci_platdata origen_hsmmc0_pdata __initdata = {
 	.cd_type		= S3C_SDHCI_CD_INTERNAL,
 };
@@ -693,6 +701,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc0,
 	&s3c_device_i2c0,
+	&s3c_device_i2c6,
 	&s3c_device_rtc,
 	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
@@ -780,6 +789,8 @@ static void __init origen_machine_init(void)
 
 	s3c_i2c0_set_platdata(NULL);
 	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
+	s3c_i2c6_set_platdata(NULL);
+	i2c_register_board_info(6, i2c6_devs, ARRAY_SIZE(i2c6_devs));
 
 	/*
 	 * Since sdhci instance 2 can contain a bootable media,
