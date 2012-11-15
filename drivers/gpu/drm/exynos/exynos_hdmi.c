@@ -2085,6 +2085,7 @@ static void hdmi_dpms(void *ctx, int mode)
 		hdmi_poweron(hdata);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
+		break;
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		hdmi_poweroff(hdata);

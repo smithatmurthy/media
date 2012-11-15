@@ -757,6 +757,7 @@ static void mixer_dpms(void *ctx, int mode)
 		mixer_poweron(mixer_ctx);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
+		break;
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		mixer_poweroff(mixer_ctx);
