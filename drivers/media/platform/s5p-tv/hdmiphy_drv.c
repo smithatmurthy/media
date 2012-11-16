@@ -309,6 +309,7 @@ static int __devexit hdmiphy_remove(struct i2c_client *client)
 static const struct i2c_device_id hdmiphy_id[] = {
 	{ "hdmiphy", (unsigned long)hdmiphy_conf_exynos4210 },
 	{ "hdmiphy-s5pv210", (unsigned long)hdmiphy_conf_s5pv210 },
+	{ "s5p_hdmiphy", (unsigned long)hdmiphy_conf_s5pv210 },
 	{ "hdmiphy-exynos4210", (unsigned long)hdmiphy_conf_exynos4210 },
 	{ "hdmiphy-exynos4212", (unsigned long)hdmiphy_conf_exynos4212 },
 	{ "hdmiphy-exynos4412", (unsigned long)hdmiphy_conf_exynos4412 },
