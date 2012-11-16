@@ -755,8 +755,8 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
-#ifdef CONFIG_DRM_EXYNOS
 	&exynos_device_drm,
+#ifdef CONFIG_DRM_EXYNOS_HDMI
 	&exynos_device_hdmi_drm,
 #endif
 	&exynos4_device_ohci,
@@ -810,7 +810,7 @@ static void s5p_tv_setup(void)
 	/* setting platform data */
 	s5p_device_hdmi.dev.platform_data = &s5p_hdmi_pdata;
 	exynos_device_hdmi_drm.dev.platform_data = &drm_common_hdmi_pd;
-#if CONFIG_DRM_EXYNOS
+#if CONFIG_DRM_EXYNOS_HDMI
 	i2c_register_board_info(8, &s5p_hdmiphy_info, 1);
 #endif
 }
@@ -857,12 +857,8 @@ static void __init origen_machine_init(void)
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
 
-#ifdef CONFIG_DRM_EXYNOS
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();
-#else
-	s5p_fimd0_set_platdata(&origen_lcd_pdata);
-#endif
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
