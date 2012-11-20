@@ -326,7 +326,7 @@ static int mxr_s_fmt(struct file *file, void *priv,
 	if (fmt == NULL) {
 		mxr_warn(mdev, "not recognized fourcc: %08x\n",
 			pix->pixelformat);
-		return -EINVAL;
+		fmt = layer->fmt_array[0];
 	}
 	layer->fmt = fmt;
 	/* set source size to highest accepted value */
