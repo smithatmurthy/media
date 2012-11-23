@@ -1006,8 +1006,6 @@ static void gsc_clk_put(struct gsc_dev *gsc)
 		return;
 
 	clk_unprepare(gsc->clock);
-	clk_put(gsc->clock);
-	gsc->clock = NULL;
 }
 
 static int gsc_clk_get(struct gsc_dev *gsc)
@@ -1016,26 +1014,21 @@ static int gsc_clk_get(struct gsc_dev *gsc)
 
 	dev_dbg(&gsc->pdev->dev, "gsc_clk_get Called\n");
 
-	gsc->clock = clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
+	gsc->clock = devm_clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
 	if (IS_ERR(gsc->clock)) {
 		dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
 			GSC_CLOCK_GATE_NAME);
-		goto err;
+		return PTR_ERR(gsc->clock);
 	}
 
 	ret = clk_prepare(gsc->clock);
 	if (ret < 0) {
 		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
 			GSC_CLOCK_GATE_NAME);
-		clk_put(gsc->clock);
-		gsc->clock = NULL;
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	return -ENXIO;
 }
 
 static int gsc_m2m_suspend(struct gsc_dev *gsc)
