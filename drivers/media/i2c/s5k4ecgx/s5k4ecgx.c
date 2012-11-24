@@ -663,7 +663,7 @@ static int s5k4ecgx_burst_write_regs(struct v4l2_subdev *sd,
 		u32 start_addr = (*start_reg)->addr;
 		u32 end_addr = curr_reg->addr;
 		int reg_count = (end_addr - start_addr) / 2;
-		pr_debug("%s: burst write from 0x%08X to 0x%08X. %d regs.",
+		pr_debug("%s: burst write from 0x%08X to 0x%08X. %d regs."
 				"burst data starts with 0x0F12 and follow "
 				"%d bytes.\n", __func__,
 				start_addr, end_addr, reg_count, burst_len);
