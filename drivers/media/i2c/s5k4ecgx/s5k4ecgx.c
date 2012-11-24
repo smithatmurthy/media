@@ -474,7 +474,7 @@ static inline struct s5k4ec *to_s5k4ec(struct v4l2_subdev *sd)
 
 static const struct v4l2_mbus_framefmt capture_fmts[] = {
 	{
-		.code		= V4L2_MBUS_FMT_FIXED,
+		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},
 };
@@ -807,15 +807,27 @@ static int s5k4ecgx_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
+void s5k4ecgx_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
+{
+	/* Hack: temporarily hard code all values here */
+
+	mf->code = capture_fmts[0].code;
+	mf->colorspace = capture_fmts[0].colorspace;
+	mf->width = 640;
+	mf->height = 480;
+}
+
 static int s5k4ecgx_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 					struct v4l2_subdev_format *fmt)
 {
+	s5k4ecgx_try_fmt(sd, &fmt->format);
 	return 0;
 }
 
 static int s5k4ecgx_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		struct v4l2_subdev_format *fmt)
 {
+	s5k4ecgx_try_fmt(sd, &fmt->format);
 	return 0;
 }
 
