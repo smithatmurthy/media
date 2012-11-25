@@ -1,5 +1,4 @@
 /* linux/arch/arm/mach-exynos4/mach-origen.c
- *
  * Copyright (c) 2011 Insignal Co., Ltd.
  *		http://www.insignal.co.kr/
  *
@@ -26,6 +25,10 @@
 #include <linux/rfkill-gpio.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
+#include <media/s5k4ecgx.h>
+#include <media/s5p_fimc.h>
+#include <media/v4l2-mediabus.h>
+
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -35,6 +38,7 @@
 #include <media/s5p_hdmi.h>
 
 #include <plat/regs-serial.h>
+#include <plat/camport.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
@@ -456,6 +460,54 @@ static struct max8997_regulator_data __initdata origen_max8997_regulators[] = {
 	{ MAX8997_BUCK7,	&max8997_buck7_data },
 };
 
+static struct regulator_consumer_supply origen_cam_consumer1[] = {
+	REGULATOR_SUPPLY("vdda", "0-002d"),
+	REGULATOR_SUPPLY("vddio", "0-002d"),
+	REGULATOR_SUPPLY("vddcore", "0-002d"),
+};
+
+static struct regulator_init_data origen_cam_init_data1 = {
+	.constraints = { .valid_ops_mask = REGULATOR_CHANGE_STATUS },
+	.num_consumer_supplies = ARRAY_SIZE(origen_cam_consumer1),
+	.consumer_supplies = origen_cam_consumer1,
+};
+
+static struct fixed_voltage_config origen_fixed_voltage_cfg1 = {
+	.supply_name    = "VDD_CAM_2.8V",
+	.microvolts     = 2800000,
+	.gpio           = EXYNOS4_GPE1(1),
+	.enable_high    = 1,
+	.init_data      = &origen_cam_init_data1,
+};
+
+static struct platform_device origen_cam_rdev1 = {
+	.name = "reg-fixed-voltage", .id = 0,
+	.dev = { .platform_data = &origen_fixed_voltage_cfg1 },
+};
+
+static struct regulator_consumer_supply origen_cam_consumer2[] = {
+	REGULATOR_SUPPLY("vddreg", "0-002d"),
+};
+
+static struct regulator_init_data origen_cam_init_data2 = {
+	.constraints = { .valid_ops_mask = REGULATOR_CHANGE_STATUS },
+	.num_consumer_supplies = ARRAY_SIZE(origen_cam_consumer2),
+	.consumer_supplies = origen_cam_consumer2,
+};
+
+static struct fixed_voltage_config origen_fixed_voltage_cfg2 = {
+	.supply_name    = "VDD_CAM_1.8V",
+	.microvolts     = 1800000,
+	.gpio           = EXYNOS4_GPE1(2),
+	.enable_high    = 1,
+	.init_data      = &origen_cam_init_data2,
+};
+
+static struct platform_device origen_cam_rdev2 = {
+	.name = "reg-fixed-voltage", .id = 1,
+	.dev = { .platform_data = &origen_fixed_voltage_cfg2 },
+};
+
 static struct max8997_platform_data __initdata origen_max8997_pdata = {
 	.num_regulators = ARRAY_SIZE(origen_max8997_regulators),
 	.regulators	= origen_max8997_regulators,
@@ -499,6 +551,59 @@ static struct max8997_platform_data __initdata origen_max8997_pdata = {
 	.buck5_voltage[6]	= 1200000,
 	.buck5_voltage[7]	= 1200000,
 };
+
+/* Analog Power, 2.8 : Vdda */
+#define ORIGEN_GPIO_CAM_2V8	EXYNOS4_GPE1(1)
+/* I/O Digital Power : Vddio */
+#define ORIGEN_GPIO_CAM_1V8	EXYNOS4_GPE1(2)
+/* Core Digital Power: Vddd or VDD_reg */
+#define ORIGEN_GPIO_CAM_VDDD	EXYNOS4_GPE1(3)
+#define ORIGEN_GPIO_CAM_RESET	EXYNOS4_GPE1(4)
+#define ORIGEN_GPIO_CAM_STBY	EXYNOS4_GPE1(0)
+
+static struct s5k4ecgx_platform_data s5k4ecgx_plat = {
+	.gpio_stby = { ORIGEN_GPIO_CAM_STBY, 0 },
+	.gpio_reset = { ORIGEN_GPIO_CAM_RESET, 1 },
+};
+
+static struct i2c_board_info  s5k4ecgx_i2c_info = {
+	I2C_BOARD_INFO("s5k4ecgx", 0x5A >> 1),
+	.platform_data = &s5k4ecgx_plat,
+};
+
+static struct s5p_fimc_isp_info origen_camera_sensors[] = {
+	{
+		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING|
+				V4L2_MBUS_VSYNC_ACTIVE_HIGH,
+		.bus_type	= FIMC_ITU_601,
+		.board_info	= &s5k4ecgx_i2c_info,
+		.clk_frequency	= 24000000UL,
+		.i2c_bus_num	= 0,
+	},
+};
+
+static struct s5p_platform_fimc fimc_md_platdata = {
+	.isp_info	= origen_camera_sensors,
+	.num_clients	= ARRAY_SIZE(origen_camera_sensors),
+};
+
+static void __init origen_camera_init(void)
+{
+	s3c_gpio_cfgpin(ORIGEN_GPIO_CAM_RESET, S3C_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(ORIGEN_GPIO_CAM_STBY, S3C_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(ORIGEN_GPIO_CAM_2V8, S3C_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(ORIGEN_GPIO_CAM_1V8, S3C_GPIO_OUTPUT);
+
+	s3c_set_platdata(&fimc_md_platdata,  sizeof(fimc_md_platdata),
+			&s5p_device_fimc_md);
+
+	if (exynos4_fimc_setup_gpio(S5P_CAMPORT_A)) {
+		pr_err("%s: Camera port A setup failed\n", __func__);
+		return;
+	}
+	/* Increase drive strength of the sensor clock output */
+	s5p_gpio_set_drvstr(EXYNOS4_GPJ1(3), S5P_GPIO_DRVSTR_LV4);
+}
 
 /* I2C0 */
 static struct i2c_board_info i2c0_devs[] __initdata = {
@@ -764,6 +869,8 @@ static struct platform_device *origen_devices[] __initdata = {
 	&origen_lcd_hv070wsa,
 	&origen_leds_gpio,
 	&origen_device_bluetooth,
+	&origen_cam_rdev1,
+	&origen_cam_rdev2,
 };
 
 /* LCD Backlight data */
@@ -859,6 +966,8 @@ static void __init origen_machine_init(void)
 
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();
+
+	origen_camera_init();
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
