@@ -944,7 +944,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 }
 
 /*
- * The peripheral sensor clock management.
+ * The peripheral sensor and CAM_BLK (PIXELASYNCMx) clocks management.
  */
 static void fimc_md_put_clocks(struct fimc_md *fmd)
 {
@@ -956,6 +956,17 @@ static void fimc_md_put_clocks(struct fimc_md *fmd)
 		clk_unprepare(fmd->camclk[i].clock);
 		clk_put(fmd->camclk[i].clock);
 		fmd->camclk[i].clock = ERR_PTR(-EINVAL);
+	}
+
+	/* Writeback (PIXELASYNCMx) clocks */
+	for (i = 0; i < FIMC_MAX_WBCLKS; i++) {
+		if (IS_ERR(fmd->wbclk[i]))
+			continue;
+		/* FIXME: find better place to disable this clock! */
+		clk_disable(fmd->wbclk[i]);
+		clk_unprepare(fmd->wbclk[i]);
+		clk_put(fmd->wbclk[i]);
+		fmd->wbclk[i] = ERR_PTR(-EINVAL);
 	}
 }
 
@@ -989,6 +1000,34 @@ static int fimc_md_get_clocks(struct fimc_md *fmd)
 			break;
 		}
 		fmd->camclk[i].clock = clock;
+	}
+	if (ret)
+		fimc_md_put_clocks(fmd);
+
+	if (!fmd->use_isp)
+		return 0;
+	/*
+	 * For now get only PIXELASYNCM1 clock (Writeback B/ISP),
+	 * leave PIXELASYNCM0 out for the display driver.
+	 */
+	for (i = CLK_IDX_WB_B; i < FIMC_MAX_WBCLKS; i++) {
+		snprintf(clk_name, sizeof(clk_name), "pxl_async%u", i);
+		clock = clk_get(dev, clk_name);
+		if (IS_ERR(clock)) {
+			v4l2_err(&fmd->v4l2_dev, "Failed to get clock: %s\n",
+				  clk_name);
+			ret = PTR_ERR(clock);
+			break;
+		}
+		ret = clk_prepare(clock);
+		if (ret < 0) {
+			clk_put(clock);
+			fmd->wbclk[i] = ERR_PTR(-EINVAL);
+			break;
+		}
+		fmd->wbclk[i] = clock;
+		/* FIXME: find better place to enable this clock! */
+		clk_enable(clock);
 	}
 	if (ret)
 		fimc_md_put_clocks(fmd);
