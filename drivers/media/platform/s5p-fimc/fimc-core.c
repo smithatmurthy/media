@@ -79,6 +79,10 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
 	}, {
+		.name		= "YUV 4:4:4",
+		.mbus_code	= V4L2_MBUS_FMT_YUV10_1X30,
+		.flags		= FMT_FLAGS_WRITEBACK,
+	}, {
 		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.depth		= { 16 },

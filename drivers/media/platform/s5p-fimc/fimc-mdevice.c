@@ -236,6 +236,11 @@ static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
 
 	if (!s_info || !fmd)
 		return NULL;
+	/*
+	 * If FIMC bus type is not Writeback FIFO assume it is same
+	 * as sensor_bus_type.
+	 */
+	s_info->pdata.fimc_bus_type = s_info->pdata.sensor_bus_type;
 
 	adapter = i2c_get_adapter(s_info->pdata.i2c_bus_num);
 	if (!adapter) {

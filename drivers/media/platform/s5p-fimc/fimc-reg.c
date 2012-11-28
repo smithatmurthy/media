@@ -8,6 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
+#define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -631,6 +632,10 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 		if (fimc_fmt_is_user_defined(f->fmt->color))
 			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
 		break;
+	default:
+	case FIMC_BUS_TYPE_ISP_WRITEBACK:
+		/* Anything to do here ? */
+		break;
 	}
 
 	cfg |= (f->o_width << 16) | f->o_height;
@@ -660,16 +665,17 @@ void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			    struct fimc_source_info *source)
 {
-	u32 cfg, tmp;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	u32 csis_data_alignment = 32;
+	u32 cfg, tmp;
 
 	cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
 	/* Select ITU B interface, disable Writeback path and test pattern. */
 	cfg &= ~(FIMC_REG_CIGCTRL_TESTPAT_MASK | FIMC_REG_CIGCTRL_SELCAM_ITU_A |
 		FIMC_REG_CIGCTRL_SELCAM_MIPI | FIMC_REG_CIGCTRL_CAMIF_SELWB |
-		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG);
+		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG |
+		FIMC_REG_CIGCTRL_SELWB_A);
 
 	switch (source->fimc_bus_type) {
 	case FIMC_BUS_TYPE_MIPI_CSI2:
@@ -704,6 +710,12 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		break;
 	case FIMC_BUS_TYPE_LCD_WRITEBACK_A:
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
+		/* fall through */
+	case FIMC_BUS_TYPE_ISP_WRITEBACK:
+		if (fimc->variant->has_isp_wb)
+			cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
+		else
+			WARN_ONCE(1, "ISP Writeback input is not supported\n");
 		break;
 	default:
 		v4l2_err(&vid_cap->vfd, "Invalid FIMC bus type selected: %d\n",
@@ -783,4 +795,53 @@ void fimc_deactivate_capture(struct fimc_dev *fimc)
 	fimc_hw_disable_capture(fimc);
 	fimc_hw_enable_scaler(fimc, false);
 	fimc_hw_en_lastirq(fimc, false);
+}
+
+/*
+ * TODO: Create common System Registers API for all relevant drivers
+ * Now there is are races/conflicts possible when two drivers access same
+ * register, e.g. V4L2 FIMC and DRM FIMC/FIMD.
+ */
+
+#define CAMBLK_CFG_FIFORST_ISP		(1 << 15)
+#define CAMBLK_CFG_RST_MASK_ISP		(1 << 7)
+
+/**
+ * fimc_hw_camblk_set_isp_wb() - enable selected writeback output at CAMERA_BLK
+ * @mask: mask selecting output for FIMC, b[2:0] <-> {FIMC2, FIMC1, FIMC0}
+ */
+int fimc_hw_camblk_set_isp_wb(struct fimc_dev *fimc, unsigned int mask,
+			      unsigned int enable)
+{
+	u32 camblk = readl(SYSREG_CAMERA_BLK);
+	u32 ispblk = readl(SYSREG_ISP_BLK);
+
+
+	/* FIMC3 has no ISP writeback link */
+	if (WARN_ON(fimc->id == 3))
+		return -EINVAL;
+
+	/* FIXME: we're disabling FIFO full signal for all FIMC0..2 devices */
+	camblk &= ~(0x7 << 20);
+
+	if (enable) {
+		camblk |= (mask << 20);
+		camblk &= ~CAMBLK_CFG_FIFORST_ISP;
+		writel(camblk, SYSREG_CAMERA_BLK);
+
+		usleep_range(1000, 1500);
+		camblk |= CAMBLK_CFG_FIFORST_ISP;
+		writel(camblk, SYSREG_CAMERA_BLK);
+
+		ispblk &= ~CAMBLK_CFG_RST_MASK_ISP;
+		writel(ispblk, SYSREG_ISP_BLK);
+		usleep_range(1000, 1500);
+
+		ispblk |= CAMBLK_CFG_RST_MASK_ISP;
+		writel(ispblk, SYSREG_ISP_BLK);
+	} else {
+		writel(camblk, SYSREG_CAMERA_BLK);
+	}
+
+	return 0;
 }

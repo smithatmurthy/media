@@ -52,6 +52,8 @@
 #define FIMC_REG_CIGCTRL_IRQ_CLR		(1 << 19)
 #define FIMC_REG_CIGCTRL_IRQ_ENABLE		(1 << 16)
 #define FIMC_REG_CIGCTRL_SHDW_DISABLE		(1 << 12)
+/* 0 - selects Writeback A (LCD), 1 - selects Writeback B (LCD/ISP) */
+#define FIMC_REG_CIGCTRL_SELWB_A		(1 << 10)
 #define FIMC_REG_CIGCTRL_CAM_JPEG		(1 << 8)
 #define FIMC_REG_CIGCTRL_SELCAM_MIPI_A		(1 << 7)
 #define FIMC_REG_CIGCTRL_CAMIF_SELWB		(1 << 6)
@@ -276,6 +278,12 @@
 /* Output frame buffer sequence mask */
 #define FIMC_REG_CIFCNTSEQ			0x1fc
 
+/* SYSREG for writeback */
+#include <plat/map-base.h>
+/* FIXME: make it independent of the map-base.h */
+#define SYSREG_CAMERA_BLK			(S3C_VA_SYS + 0x0218)
+#define SYSREG_ISP_BLK				(S3C_VA_SYS + 0x020c)
+
 /*
  * Function declarations
  */
@@ -309,6 +317,8 @@ void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on);
 void fimc_hw_disable_capture(struct fimc_dev *dev);
 s32 fimc_hw_get_frame_index(struct fimc_dev *dev);
 s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev);
+int fimc_hw_camblk_set_isp_wb(struct fimc_dev *fimc, unsigned int mask,
+			      unsigned int enable);
 void fimc_activate_capture(struct fimc_ctx *ctx);
 void fimc_deactivate_capture(struct fimc_dev *fimc);
 

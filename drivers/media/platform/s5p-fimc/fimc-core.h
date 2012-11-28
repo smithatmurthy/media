@@ -165,6 +165,7 @@ struct fimc_fmt {
 #define FMT_FLAGS_M2M		(1 << 1 | 1 << 2)
 #define FMT_HAS_ALPHA		(1 << 3)
 #define FMT_FLAGS_COMPRESSED	(1 << 4)
+#define FMT_FLAGS_WRITEBACK	(1 << 5)
 };
 
 /**
@@ -306,8 +307,9 @@ struct fimc_m2m_device {
 };
 
 #define FIMC_SD_PAD_SINK	0
-#define FIMC_SD_PAD_SOURCE	1
-#define FIMC_SD_PADS_NUM	2
+#define FIMC_SD_PAD_SINK_FIFO	1
+#define FIMC_SD_PAD_SOURCE	2
+#define FIMC_SD_PADS_NUM	3
 
 /**
  * struct fimc_vid_cap - camera capture device information
