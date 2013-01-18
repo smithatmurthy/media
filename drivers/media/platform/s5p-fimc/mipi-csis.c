@@ -753,8 +753,8 @@ static int s5pcsis_probe(struct platform_device *pdev)
 
 e_regput:
 	regulator_bulk_free(CSIS_NUM_SUPPLIES, state->supplies);
-e_clkput:
 	clk_disable(state->clock[CSIS_CLK_MUX]);
+e_clkput:
 	s5pcsis_clk_put(state);
 	return ret;
 }
