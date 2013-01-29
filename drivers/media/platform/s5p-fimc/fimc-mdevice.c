@@ -21,6 +21,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/of_i2c.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
@@ -1196,6 +1197,14 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	/* Protect the media graph while we're registering entities */
 	mutex_lock(&fmd->media_dev.graph_mutex);
+
+	if (dev->of_node) {
+		struct pinctrl *pctl = devm_pinctrl_get_select_default(dev);
+		if (IS_ERR(pctl)) {
+			ret = PTR_ERR(pctl);
+			goto err_unlock;
+		}
+	}
 
 	if (fmd->pdev->dev.of_node)
 		ret = fimc_md_register_of_platform_entities(fmd, dev->of_node);

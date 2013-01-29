@@ -18,6 +18,10 @@ Required properties:
 
 - compatible	   : must be "samsung,fimc", "simple-bus"
 
+- pinctrl-names    : pinctrl names for camera port pinmux control, at least
+		     "default" needs to be specified.
+- pinctrl-0...N	   : pinctrl properties corresponding to pinctrl-names
+
 The 'camera' node must include at least one 'fimc' child node.
 
 
@@ -132,6 +136,9 @@ Example:
 		#address-cells = <1>;
 		#size-cells = <1>;
 		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_port_a_clk_active>;
 
 		/* parallel camera ports */
 		parallel-ports {
