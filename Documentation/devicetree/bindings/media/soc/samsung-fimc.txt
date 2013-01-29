@@ -1,0 +1,72 @@
+Samsung S5P/EXYNOS SoC Camera Subsystem (FIMC)
+----------------------------------------------
+
+The Exynos Camera subsystem comprises of multiple sub-devices that are
+represented by separate platform devices. Some of the IPs come in different
+variants across the SoC revisions (FIMC) and some remain mostly unchanged
+(MIPI CSIS, FIMC-LITE).
+
+All those sub-subdevices are defined as parent nodes of the common device
+node, which also includes common properties of the whole subsystem not really
+specific to any single sub-device, like common camera port pins or external
+clocks for image sensors attached to the SoC.
+
+Common 'camera' node
+--------------------
+
+Required properties:
+
+- compatible	   : must be "samsung,fimc", "simple-bus"
+
+The 'camera' node must include at least one 'fimc' child node.
+
+
+'fimc' device nodes
+-------------------
+
+Required properties:
+
+- compatible : "samsung,s5pv210-fimc" for S5PV210,
+	       "samsung,exynos4210-fimc" for Exynos4210,
+	       "samsung,exynos4212-fimc" for Exynos4212/4412 SoCs;
+- reg	     : physical base address and size of the device memory mapped
+	       registers;
+- interrupts : FIMC interrupt to the CPU should be described here;
+
+For every fimc node a numbered alias should be present in the aliases node.
+Aliases are of the form fimc<n>, where <n> is an integer (0...N) specifying
+the IP's instance index.
+
+Optional properties
+
+ - clock-frequency - maximum FIMC local clock (LCLK) frequency
+
+Example:
+
+	aliases {
+		csis0 = &csis_0;
+		fimc0 = &fimc_0;
+	};
+
+	camera {
+		compatible = "samsung,fimc", "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		status = "okay";
+
+		fimc_0: fimc@11800000 {
+			compatible = "samsung,exynos4210-fimc";
+			reg = <0x11800000 0x1000>;
+			interrupts = <0 85 0>;
+			status = "okay";
+		};
+
+		csis_0: csis@11880000 {
+			compatible = "samsung,exynos4210-csis";
+			reg = <0x11880000 0x1000>;
+			interrupts = <0 78 0>;
+			max-data-lanes = <4>;
+		};
+	};
+
+[1] Documentation/devicetree/bindings/media/soc/samsung-mipi-csis.txt
