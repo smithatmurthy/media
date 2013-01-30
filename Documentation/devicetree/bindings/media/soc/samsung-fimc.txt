@@ -56,6 +56,29 @@ For every fimc-lite node a numbered alias should be present in the aliases
 node. Aliases are in form of fimc-lite<n>, where <n> is an integer (0...N)
 specifying the IP's instance index.
 
+
+'parallel-ports' node
+---------------------
+
+This node should contain child 'port' nodes specifying active parallel video
+input ports. It includes camera A and camera B inputs. 'reg' property in the
+port nodes specifies data input - 0, 1 indicates input A, B respectively.
+
+Optional properties
+
+- samsung,camclk-out	 : specifies clock output for remote sensor,
+			   0 - CAM_A_CLKOUT, 1 - CAM_B_CLKOUT;
+
+Image sensor nodes
+------------------
+
+The sensor device nodes should be added as their control bus controller
+(e.g. I2C0) child nodes and linked to a port node in the csis or parallel-ports
+node, using common the common video interfaces bindings, i.e. port/endpoint
+node pairs. The implementation of this binding requires clock-frequency
+property to be present in the sensor device nodes.
+
+
 Example:
 
 	aliases {
@@ -63,11 +86,67 @@ Example:
 		fimc0 = &fimc_0;
 	};
 
+	/* Parallel bus IF sensor */
+	i2c_0: i2c@13860000 {
+		s5k6aa: sensor@3c {
+			compatible = "samsung,s5k6aafx";
+			reg = <0x3c>;
+			vddio-supply = <...>;
+
+			clock-frequency = <24000000>;
+			clocks = <...>;
+			clock-names = "mclk";
+
+			port {
+				s5k6aa_ep: endpoint {
+					remote-endpoint = <&fimc0_ep>;
+					bus-width = <8>;
+					hsync-active = <0>;
+					hsync-active = <1>;
+					pclk-sample = <1>;
+				};
+			};
+		};
+	};
+
+	/* MIPI CSI-2 bus IF sensor */
+	s5c73m3: sensor@0x1a {
+		compatible = "samsung,s5c73m3";
+		reg = <0x1a>;
+		vddio-supply = <...>;
+
+		clock-frequency = <24000000>;
+		clocks = <...>;
+		clock-names = "mclk";
+
+		port {
+			s5c73m3_1: endpoint {
+				data-lanes = <1>, <2>, <3>, <4>;
+				remote-endpoint = <&csis0_ep>;
+			};
+		};
+	};
+
 	camera {
 		compatible = "samsung,fimc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		status = "okay";
+
+		/* parallel camera ports */
+		parallel-ports {
+			/* camera A input */
+			port@0 {
+				reg = <1>;
+				fimc0_ep: endpoint {
+					remote-endpoint = <&s5k6aa_ep>;
+					bus-width = <8>;
+					hsync-active = <0>;
+					hsync-active = <1>;
+					pclk-sample = <1>;
+				};
+			};
+		};
 
 		fimc_0: fimc@11800000 {
 			compatible = "samsung,exynos4210-fimc";
@@ -81,6 +160,16 @@ Example:
 			reg = <0x11880000 0x1000>;
 			interrupts = <0 78 0>;
 			max-data-lanes = <4>;
+			/* camera C input */
+			port {
+				reg = <3>;
+				csis0_ep: endpoint {
+					remote-endpoint = <&s5c73m3_ep>;
+					data-lanes = <1>, <2>, <3>, <4>;
+					samsung,csis-hs-settle = <12>;
+					samsung,camclk-out = <0>;
+				};
+			};
 		};
 	};
 

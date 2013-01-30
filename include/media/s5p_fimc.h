@@ -15,6 +15,19 @@
 #include <media/media-entity.h>
 
 /*
+ * Enumeration of data inputs to the camera subsystem.
+ */
+enum fimc_input {
+	FIMC_INPUT_PARALLEL_0	= 1,
+	FIMC_INPUT_PARALLEL_1,
+	FIMC_INPUT_MIPI_CSI2_0	= 3,
+	FIMC_INPUT_MIPI_CSI2_1,
+	FIMC_INPUT_WRITEBACK_A	= 5,
+	FIMC_INPUT_WRITEBACK_B,
+	FIMC_INPUT_WRITEBACK_ISP = 5,
+};
+
+/*
  * Enumeration of the FIMC data bus types.
  */
 enum fimc_bus_type {
@@ -31,6 +44,9 @@ enum fimc_bus_type {
 	/* FIFO link from FIMC-IS */
 	FIMC_BUS_TYPE_ISP_WRITEBACK = FIMC_BUS_TYPE_LCD_WRITEBACK_B,
 };
+
+#define fimc_input_is_parallel(x) ((x) == 1 || (x) == 2)
+#define fimc_input_is_mipi_csi(x) ((x) == 3 || (x) == 4)
 
 struct i2c_board_info;
 
