@@ -32,7 +32,6 @@
 
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
-#define MAX_FIMC_CLOCKS		2
 #define FIMC_MODULE_NAME	"s5p-fimc"
 #define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
@@ -51,6 +50,9 @@
 enum {
 	CLK_BUS,
 	CLK_GATE,
+	CLK_MUX,
+	CLK_PARENT,
+	CLK_FIMC_MAX,
 };
 
 enum fimc_dev_flags {
@@ -446,7 +448,7 @@ struct fimc_dev {
 	const struct fimc_variant	*variant;
 	const struct fimc_drvdata	*drv_data;
 	u16				id;
-	struct clk			*clock[MAX_FIMC_CLOCKS];
+	struct clk			*clock[CLK_FIMC_MAX];
 	void __iomem			*regs;
 	wait_queue_head_t		irq_queue;
 	struct v4l2_device		*v4l2_dev;
