@@ -3136,6 +3136,13 @@ giving priority to the center of the metered area.</entry>
 		  <entry><constant>V4L2_EXPOSURE_METERING_SPOT</constant>&nbsp;</entry>
 		  <entry>Measure only very small area at the center of the frame.</entry>
 		</row>
+		<row>
+		  <entry><constant>V4L2_EXPOSURE_METERING_MATRIX</constant>&nbsp;</entry>
+		  <entry>A multi-zone metering. The light intensity is measured
+in several points of the frame and the the results are combined. The
+algorithm of the zones selection and their significance in calculating the
+final value is device dependant.</entry>
+		</row>
 	      </tbody>
 	    </entrytbl>
 	  </row>
@@ -3963,7 +3970,7 @@ interface and may change in the future.</para>
 
           <table pgwide="1" frame="none" id="flash-control-id">
           <title>Flash Control IDs</title>
-    
+
           <tgroup cols="4">
     	<colspec colname="c1" colwidth="1*" />
     	<colspec colname="c2" colwidth="6*" />
