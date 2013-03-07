@@ -1,0 +1,13 @@
+Exynos4x12/Exynos5 SoC series camera interface (FIMC-LITE)
+
+Required properties:
+
+- compatible : should be "samsung,exynos4212-fimc" for Exynos4212 and
+	       Exynos4412 SoCs;
+- reg	     : physical base address and size of the device memory mapped
+	       registers;
+- interrupts : should contain FIMC-LITE interrupt;
+
+For every fimc-lite node a numbered alias should be present in the aliases
+node. Aliases are in form of fimc-lite<n>, where <n> is an integer (0...N)
+specifying the IP's instance index.
