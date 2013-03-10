@@ -259,3 +259,22 @@ struct device_node *v4l2_of_get_remote_port_parent(
 	return np;
 }
 EXPORT_SYMBOL(v4l2_of_get_remote_port_parent);
+
+/**
+ * v4l2_of_get_remote_port() - get remote port node
+ * @node: pointer to a local endpoint device_node
+ *
+ * Return: Remote port node associated with remote endpoint node linked
+ *	   to @node. Use of_node_put() on it when done.
+ */
+struct device_node *v4l2_of_get_remote_port(const struct device_node *node)
+{
+	struct device_node *np;
+
+	/* Get remote endpoint node. */
+	np = of_parse_phandle(node, "remote-endpoint", 0);
+	if (!np)
+		return NULL;
+	return of_get_parent(np);
+}
+EXPORT_SYMBOL(v4l2_of_get_remote_port);
