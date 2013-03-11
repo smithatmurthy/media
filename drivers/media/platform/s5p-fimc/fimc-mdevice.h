@@ -80,6 +80,7 @@ struct fimc_sensor_info {
  * @num_sensors: actual number of registered sensors
  * @camclk: external sensor clock information
  * @fimc: array of registered fimc devices
+ * @pmf: handle to the CAMCLK clock control FIMC helper device
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
@@ -97,6 +98,7 @@ struct fimc_md {
 	struct clk *wbclk[FIMC_MAX_WBCLKS];
 	struct fimc_lite *fimc_lite[FIMC_LITE_MAX_DEVS];
 	struct fimc_dev *fimc[FIMC_MAX_DEVS];
+	struct device *pmf;
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
