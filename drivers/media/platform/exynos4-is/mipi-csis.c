@@ -20,6 +20,7 @@
 #include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_data/mipi-csis.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -167,6 +168,7 @@ struct csis_pktbuf {
  * @sd: v4l2_subdev associated with CSIS device instance
  * @index: the hardware instance index
  * @pdev: CSIS platform device
+ * @phy: pointer to the CSIS generic PHY
  * @regs: mmaped I/O registers memory
  * @supplies: CSIS regulator supplies
  * @clock: CSIS clocks
@@ -189,6 +191,8 @@ struct csis_state {
 	struct v4l2_subdev sd;
 	u8 index;
 	struct platform_device *pdev;
+	struct phy *phy;
+	const char *phy_label;
 	void __iomem *regs;
 	struct regulator_bulk_data supplies[CSIS_NUM_SUPPLIES];
 	struct clk *clock[NUM_CSIS_CLOCKS];
@@ -726,6 +730,7 @@ static int s5pcsis_get_platform_data(struct platform_device *pdev,
 	state->index = max(0, pdev->id);
 	state->max_num_lanes = state->index ? CSIS1_MAX_LANES :
 					      CSIS0_MAX_LANES;
+	state->phy_label = pdata->phy_label;
 	return 0;
 }
 
@@ -763,8 +768,9 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 					"samsung,csis-wclk");
 
 	state->num_lanes = endpoint.bus.mipi_csi2.num_data_lanes;
-
 	of_node_put(node);
+
+	state->phy_label = "csis";
 	return 0;
 }
 #else
@@ -799,6 +805,10 @@ static int s5pcsis_probe(struct platform_device *pdev)
 			state->num_lanes, state->max_num_lanes);
 		return -EINVAL;
 	}
+
+	state->phy = devm_phy_get(dev, state->phy_label);
+	if (IS_ERR(state->phy))
+		return PTR_ERR(state->phy);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	state->regs = devm_ioremap_resource(dev, mem_res);
@@ -893,7 +903,7 @@ static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 	mutex_lock(&state->lock);
 	if (state->flags & ST_POWERED) {
 		s5pcsis_stop_stream(state);
-		ret = s5p_csis_phy_enable(state->index, false);
+		ret = phy_power_off(state->phy);
 		if (ret)
 			goto unlock;
 		ret = regulator_bulk_disable(CSIS_NUM_SUPPLIES,
@@ -929,7 +939,7 @@ static int s5pcsis_pm_resume(struct device *dev, bool runtime)
 					    state->supplies);
 		if (ret)
 			goto unlock;
-		ret = s5p_csis_phy_enable(state->index, true);
+		ret = phy_power_on(state->phy);
 		if (!ret) {
 			state->flags |= ST_POWERED;
 		} else {
