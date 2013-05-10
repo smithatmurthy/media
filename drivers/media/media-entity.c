@@ -429,6 +429,57 @@ media_entity_create_link(struct media_entity *source, u16 source_pad,
 }
 EXPORT_SYMBOL_GPL(media_entity_create_link);
 
+void __media_entity_remove_links(struct media_entity *entity)
+{
+	int i, r;
+
+	for (i = 0; i < entity->num_links; i++) {
+		struct media_link *link = &entity->links[i];
+		struct media_entity *remote;
+		int num_links;
+
+		if (link->source->entity == entity)
+			remote = link->sink->entity;
+		else
+			remote = link->source->entity;
+
+		num_links = remote->num_links;
+
+		for (r = 0; r < num_links; r++) {
+			struct media_link *rlink = &remote->links[r];
+
+			if (rlink != link->reverse)
+				continue;
+
+			if (link->source->entity == entity)
+				remote->num_backlinks--;
+
+			remote->num_links--;
+
+			if (remote->num_links < 1)
+				break;
+
+			/* Insert last entry in place of the dropped link. */
+			remote->links[r--] = remote->links[remote->num_links];
+		}
+	}
+
+	entity->num_links = 0;
+	entity->num_backlinks = 0;
+}
+EXPORT_SYMBOL_GPL(__media_entity_remove_links);
+
+void media_entity_remove_links(struct media_entity *entity)
+{
+	if (WARN_ON_ONCE(entity->parent == NULL))
+		return;
+
+	mutex_lock(&entity->parent->graph_mutex);
+	__media_entity_remove_links(entity);
+	mutex_unlock(&entity->parent->graph_mutex);
+}
+EXPORT_SYMBOL_GPL(media_entity_remove_links);
+
 static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
 {
 	int ret;
