@@ -684,3 +684,104 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
 
+/* Videobuf2 ioctl helpers */
+
+int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
+				struct v4l2_requestbuffers *rb)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_reqbufs(file, fh->m2m_ctx, rb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_reqbufs);
+
+int v4l2_m2m_ioctl_querybuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_querybuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_querybuf);
+
+int v4l2_m2m_ioctl_qbuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+	return v4l2_m2m_qbuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_qbuf);
+
+int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
+				struct v4l2_buffer *buf)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_dqbuf);
+
+int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
+				struct v4l2_exportbuffer *eb)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_expbuf(file, fh->m2m_ctx, eb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_expbuf);
+
+int v4l2_m2m_ioctl_streamon(struct file *file, void *priv,
+				enum v4l2_buf_type type)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_streamon(file, fh->m2m_ctx, type);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamon);
+
+int v4l2_m2m_ioctl_streamoff(struct file *file, void *priv,
+				enum v4l2_buf_type type)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	return v4l2_m2m_streamoff(file, fh->m2m_ctx, type);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamoff);
+
+/*
+ * v4l2_file_operations helpers. It is assumed here same lock is used for
+ * the output and the capture buffer queue.
+ */
+
+int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct vb2_queue *vq = v4l2_m2m_get_src_vq(fh->m2m_ctx);
+	int ret;
+
+	if (vq->lock)
+		mutex_lock(vq->lock);
+	ret = v4l2_m2m_mmap(file, fh->m2m_ctx, vma);
+	if (vq->lock)
+		mutex_unlock(vq->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
+
+int v4l2_m2m_fop_poll(struct file *file, poll_table *wait)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct vb2_queue *vq = v4l2_m2m_get_src_vq(fh->m2m_ctx);
+	int ret;
+
+	if (vq->lock)
+		mutex_lock(vq->lock);
+	ret = v4l2_m2m_poll(file, fh->m2m_ctx, wait);
+	if (vq->lock)
+		mutex_unlock(vq->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_fop_poll);
+

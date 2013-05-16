@@ -214,5 +214,24 @@ static inline void *v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 	return v4l2_m2m_buf_remove(&m2m_ctx->cap_q_ctx);
 }
 
+/* ioctl helpers */
+
+int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
+				struct v4l2_requestbuffers *rb);
+int v4l2_m2m_ioctl_querybuf(struct file *file, void *fh,
+				struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_qbuf(struct file *file, void *fh,
+				struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_dqbuf(struct file *file, void *fh,
+				struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_expbuf(struct file *file, void *fh,
+				struct v4l2_exportbuffer *eb);
+int v4l2_m2m_ioctl_streamon(struct file *file, void *fh,
+				enum v4l2_buf_type type);
+int v4l2_m2m_ioctl_streamoff(struct file *file, void *fh,
+				enum v4l2_buf_type type);
+int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma);
+int v4l2_m2m_fop_poll(struct file *file, poll_table *wait);
+
 #endif /* _MEDIA_V4L2_MEM2MEM_H */
 
