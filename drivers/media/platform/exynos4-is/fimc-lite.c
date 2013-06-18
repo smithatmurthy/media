@@ -1020,6 +1020,15 @@ static int fimc_lite_subdev_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static struct v4l2_mbus_framefmt *__fimc_lite_subdev_get_try_fmt(
+			struct v4l2_subdev_fh *fh, unsigned int pad)
+{
+	if (pad != FLITE_SD_PAD_SINK)
+		pad = FLITE_SD_PAD_SOURCE_DMA;
+
+	return v4l2_subdev_get_try_format(fh, pad);
+}
+
 static int fimc_lite_subdev_get_fmt(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_fh *fh,
 				    struct v4l2_subdev_format *fmt)
@@ -1029,7 +1038,7 @@ static int fimc_lite_subdev_get_fmt(struct v4l2_subdev *sd,
 	struct flite_frame *f = &fimc->inp_frame;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		mf = __fimc_lite_subdev_get_try_fmt(fh, fmt->pad);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1079,8 +1088,17 @@ static int fimc_lite_subdev_set_fmt(struct v4l2_subdev *sd,
 				    &mf->code, NULL, fmt->pad);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		struct v4l2_mbus_framefmt *src_fmt;
+
+		mf = __fimc_lite_subdev_get_try_fmt(fh, fmt->pad);
 		*mf = fmt->format;
+
+		if (fmt->pad == FLITE_SD_PAD_SINK) {
+			unsigned int pad = FLITE_SD_PAD_SOURCE_DMA;
+			src_fmt = __fimc_lite_subdev_get_try_fmt(fh, pad);
+			*src_fmt = *mf;
+		}
+
 		mutex_unlock(&fimc->lock);
 		return 0;
 	}
