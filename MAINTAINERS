@@ -1153,15 +1153,6 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/platform/s5p-g2d/
 
-ARM/SAMSUNG S5P SERIES FIMC SUPPORT
-M:	Kyungmin Park <kyungmin.park@samsung.com>
-M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
-L:	linux-arm-kernel@lists.infradead.org
-L:	linux-media@vger.kernel.org
-S:	Maintained
-F:	arch/arm/plat-samsung/include/plat/*fimc*
-F:	drivers/media/platform/s5p-fimc/
-
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Kamil Debski <k.debski@samsung.com>
@@ -6944,6 +6935,16 @@ M:	Andrzej Hajda <a.hajda@samsung.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/i2c/s5c73m3/*
+
+SAMSUNG S5P/EXYNOS4 SOC SERIES CAMERA SUBSYSTEM DRIVERS
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+L:	linux-media@vger.kernel.org
+Q:	https://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/snawrocki/samsung.git
+S:	Supported
+F:	drivers/media/platform/exynos4-is/
+F:	include/media/s5p_fimc.h
 
 SERIAL DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
