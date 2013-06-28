@@ -19,6 +19,10 @@
 	model = "Samsung Trats based on Exynos4210";
 	compatible = "samsung,trats", "samsung,exynos4210";
 
+	aliases {
+		i2c8 = &i2c_s5k5baf;
+	};
+
 	memory {
 		reg =  <0x40000000 0x10000000
 			0x50000000 0x10000000
@@ -143,6 +147,33 @@
 			linux,code = <352>;
 			label = "ok";
 			debounce-interval = <10>;
+		};
+	};
+
+	i2c_s5k5baf: i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		gpios = <&gpc1 0 0>, <&gpc1 2 0>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		s5k5bafx@2d {
+			compatible = "samsung,s5k5baf";
+			reg = <0x2d>;
+			vdda-supply = <&cam_io_en_reg>;
+			vddreg-supply = <&vt_core_15v_reg>;
+			vddio-supply = <&vtcam_reg>;
+			gpios = <&gpl2 0 1>,
+				<&gpl2 1 1>;
+			clock-frequency = <24000000>;
+
+			port {
+				s5k5bafx_ep: endpoint {
+					remote-endpoint = <&csis1_ep>;
+					data-lanes = <1>;
+				};
+			};
 		};
 	};
 
@@ -349,8 +380,8 @@
 	};
 
 	camera {
+		pinctrl-0 = <&cam_port_a_clk_active>;
 		pinctrl-names = "default";
-		pinctrl-0 = <>;
 		status = "okay";
 
 		fimc_0: fimc@11800000 {
@@ -367,6 +398,23 @@
 
 		fimc_3: fimc@11830000 {
 			status = "okay";
+		};
+
+		csis_1: csis@11890000 {
+			vddcore-supply = <&vusb_reg>;
+			vddio-supply = <&vmipi_reg>;
+			clock-frequency = <160000000>;
+			status = "okay";
+
+			/* MIPI-CSIS1 */
+			port@4 {
+				reg = <4>;
+				csis1_ep: endpoint {
+					remote-endpoint = <&s5k5bafx_ep>;
+					data-lanes = <1>;
+					samsung,csis-hs-settle = <6>;
+				};
+			};
 		};
 	};
 };
