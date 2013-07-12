@@ -1,0 +1,89 @@
+Samsung LSI S5C73M3 8M pixel camera
+-----------------------------------
+
+The S5C73M3 camera module uses I2C bus as the main device control bus
+and SPI bus, mainly for transferring the firmware to and from the device.
+Two slave slave device nodes are required corresponding to these busses
+and should be placed under respective bus controller nodes.
+
+I2C slave device node
+---------------------
+
+Required properties:
+
+- compatible	    : "samsung,s5c73m3";
+- reg		    : i2c slave address of the sensor;
+- vdd-int-supply    : digital power supply (1.2V);
+- vdda-supply	    : analog power supply (1.2V);
+- vdd-reg-supply    : regulator input power supply (2.8V);
+- vddio-host-supply : host I/O power supply (1.8V to 2.8V);
+- vddio-cis-supply  : CIS I/O power supply (1.2V to 1.8V);
+- vdd-af-supply	    : lens power supply (2.8V);
+- gpios		    : GPIOs in order: STANDBY, RESET;
+- clocks	    : contains the sensor's master clock specifier;
+- clock-names	    : contains "mclk" entry;
+
+Optional properties:
+
+- clock-frequency   : master clock frequency in Hz; if this property is
+		      not specified default 24 MHz value will be used.
+
+The common video interfaces bindings (see video-interfaces.txt) should be
+used to specify link to the host capture interface.  The S5C73M3 device
+node should contain one 'port' child node with an 'endpoint' subnode.
+The following are properties specific to those nodes.
+
+endpoint subnode
+----------------
+
+- data-lanes : (optional) specifies MIPI CSI-2 data lanes as covered in
+  video-interfaces.txt.  This property can be only used to specify number
+  of data lanes, i.e. the array's content is unused, only its length is
+  meaningful. When this property is not specified default value of 4 lanes
+  will be used.
+
+SPI slave device node
+---------------------
+
+Required properties:
+
+- compatible	    : "samsung,s5c73m3";
+
+For more details see description of the SPI busses bindings
+(../spi/spi-bus.txt) and bindings of a specific bus controller.
+
+Example:
+
+i2c@138A000000 {
+	...
+	s5c73m3@3c {
+		compatible = "samsung,s5c73m3";
+		reg = <0x3c>;
+		vdd-int-supply = <&buck9_reg>;
+		vdda-supply = <&ldo17_reg>;
+		vdd-reg-supply = <&cam_io_reg>;
+		vddio-host-supply = <&ldo18_reg>;
+		vddio-cis-supply = <&ldo9_reg>;
+		vdd-af-supply = <&cam_af_reg>;
+		clock-frequency = <24000000>;
+		clocks = <&clk 0>;
+		clock-names = "mclk";
+		gpios = <&gpm0 1 1>, /* STANDBY */
+			<&gpf1 3 1>; /* RESET */
+		port {
+			s5c73m3_ep: endpoint {
+				remote-endpoint = <&csis0_ep>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+spi@1392000 {
+	...
+	s5c73m3_spi: s5c73m3 {
+		compatible = "samsung,s5c73m3";
+		reg = <0>;
+		...
+	};
+};
