@@ -13,6 +13,7 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
 struct device;
 struct v4l2_device;
@@ -26,6 +27,7 @@ enum v4l2_async_match_type {
 	V4L2_ASYNC_MATCH_CUSTOM,
 	V4L2_ASYNC_MATCH_DEVNAME,
 	V4L2_ASYNC_MATCH_I2C,
+	V4L2_ASYNC_MATCH_OF,
 };
 
 /**
@@ -38,6 +40,9 @@ enum v4l2_async_match_type {
 struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
 	union {
+		struct {
+			const struct device_node *node;
+		} of;
 		struct {
 			const char *name;
 		} device_name;
