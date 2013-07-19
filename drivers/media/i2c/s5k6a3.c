@@ -34,6 +34,7 @@
 #define S5K6A3_DEF_PIX_HEIGHT		732
 
 #define S5K6A3_DRV_NAME			"S5K6A3"
+#define S5K6A3_CLK_NAME			"mclk"
 
 #define S5K6A3_NUM_SUPPLIES		2
 
@@ -55,6 +56,7 @@ struct s5k6a3 {
 	int gpio_reset;
 	struct mutex lock;
 	struct v4l2_mbus_framefmt format;
+	struct clk *clock;
 	u32 clock_frequency;
 };
 
@@ -180,19 +182,29 @@ static int s5k6a3_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct s5k6a3 *sensor = sd_to_s5k6a3(sd);
 	int gpio = sensor->gpio_reset;
-	int ret;
+	int ret = 0;
 
 	if (on) {
+		sensor->clock = clk_get(sensor->dev, S5K6A3_CLK_NAME);
+		if (IS_ERR(sensor->clock))
+			return PTR_ERR(sensor->clock);
+
+		ret = clk_set_rate(sensor->clock, sensor->clock_frequency);
+		if (ret < 0)
+			goto clk_put;
+
 		ret = pm_runtime_get(sensor->dev);
 		if (ret < 0)
-			return ret;
+			goto clk_put;
 
 		ret = regulator_bulk_enable(S5K6A3_NUM_SUPPLIES,
 					    sensor->supplies);
-		if (ret < 0) {
-			pm_runtime_put(sensor->dev);
-			return ret;
-		}
+		if (ret < 0)
+			goto rpm_put;
+
+		ret = clk_prepare_enable(sensor->clock);
+		if (ret < 0)
+			goto reg_dis;
 
 		if (gpio_is_valid(gpio)) {
 			gpio_set_value(gpio, 1);
@@ -208,10 +220,14 @@ static int s5k6a3_s_power(struct v4l2_subdev *sd, int on)
 		if (gpio_is_valid(gpio))
 			gpio_set_value(gpio, 0);
 
-		ret = regulator_bulk_disable(S5K6A3_NUM_SUPPLIES,
-					     sensor->supplies);
-		if (!ret)
-			pm_runtime_put(sensor->dev);
+		clk_disable_unprepare(sensor->clock);
+reg_dis:
+		regulator_bulk_disable(S5K6A3_NUM_SUPPLIES,
+						sensor->supplies);
+rpm_put:
+		pm_runtime_put(sensor->dev);
+clk_put:
+		clk_put(sensor->clock);
 	}
 	return ret;
 }
@@ -239,6 +255,7 @@ static int s5k6a3_probe(struct i2c_client *client,
 
 	mutex_init(&sensor->lock);
 	sensor->gpio_reset = -EINVAL;
+	sensor->clock = ERR_PTR(-EINVAL);
 	sensor->dev = dev;
 
 	gpio = of_get_gpio_flags(dev->of_node, 0, NULL);
@@ -250,6 +267,13 @@ static int s5k6a3_probe(struct i2c_client *client,
 	}
 	sensor->gpio_reset = gpio;
 
+	if (of_property_read_u32(dev->of_node, "clock-frequency",
+				 &sensor->clock_frequency)) {
+		dev_err(dev, "clock-frequency property not found at %s\n",
+						dev->of_node->full_name);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < S5K6A3_NUM_SUPPLIES; i++)
 		sensor->supplies[i].supply = s5k6a3_supply_names[i];
 
@@ -257,6 +281,11 @@ static int s5k6a3_probe(struct i2c_client *client,
 				      sensor->supplies);
 	if (ret < 0)
 		return ret;
+
+	/* Defer probing if the clock is not available yet */
+	sensor->clock = clk_get(dev, S5K6A3_CLK_NAME);
+	if (IS_ERR(sensor->clock))
+		return -EPROBE_DEFER;
 
 	sd = &sensor->subdev;
 	v4l2_i2c_subdev_init(sd, client, &s5k6a3_subdev_ops);
@@ -275,12 +304,24 @@ static int s5k6a3_probe(struct i2c_client *client,
 	pm_runtime_no_callbacks(dev);
 	pm_runtime_enable(dev);
 
-	return 0;
+	ret = v4l2_async_register_subdev(sd);
+
+	/*
+	 * Don't hold reference to the clock to avoid circular dependency
+	 * between the subdev and the host driver, in case the host is
+	 * a supplier of the clock.
+	 * clk_get()/clk_put() will be called in s_power callback.
+	 */
+	clk_put(sensor->clock);
+
+	return ret;
 }
 
 static int s5k6a3_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	return 0;
 }
