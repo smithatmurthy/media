@@ -10,6 +10,7 @@
 #define FIMC_MDEVICE_H_
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -105,6 +106,7 @@ struct fimc_sensor_info {
  * @pinctrl: camera port pinctrl handle
  * @state_default: pinctrl default state handle
  * @state_idle: pinctrl idle state handle
+ * @cam_clk_provider: CAMCLK clock provider structure
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
  */
@@ -122,13 +124,20 @@ struct fimc_md {
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
+
 	struct fimc_pinctrl {
 		struct pinctrl *pinctrl;
 		struct pinctrl_state *state_default;
 		struct pinctrl_state *state_idle;
 	} pinctl;
-	bool user_subdev_api;
 
+	struct cam_clk_provider {
+		struct clk *clks[FIMC_MAX_CAMCLKS];
+		struct clk_onecell_data clk_data;
+		struct device_node *of_node;
+	} clk_provider;
+
+	bool user_subdev_api;
 	spinlock_t slock;
 	struct list_head pipelines;
 };
@@ -163,8 +172,16 @@ static inline bool fimc_md_is_isp_available(struct device_node *node)
 	node = of_get_child_by_name(node, FIMC_IS_OF_NODE_NAME);
 	return node ? of_device_is_available(node) : false;
 }
+
+static inline void fimc_md_unregister_clk_provider(struct fimc_md *fmd)
+{
+	if (fmd->clk_provider.of_node)
+		of_clk_del_provider(fmd->clk_provider.of_node);
+}
 #else
+
 #define fimc_md_is_isp_available(node) (false)
+#define fimc_md_unregister_clk_provider(fmd) (0)
 #endif /* CONFIG_OF */
 
 static inline struct v4l2_subdev *__fimc_md_get_subdev(

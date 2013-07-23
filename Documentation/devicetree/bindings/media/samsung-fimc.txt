@@ -91,6 +91,15 @@ Optional properties
 - samsung,camclk-out : specifies clock output for remote sensor,
 		       0 - CAM_A_CLKOUT, 1 - CAM_B_CLKOUT;
 
+'clock-controller' node (optional)
+----------------------------------
+
+The purpose of this node is to define a clock provider for external image
+sensors and link any of the CAM_?_CLKOUT clock outputs with related external
+clock consumer device. Properties specific to this node are described in
+../clock/clock-bindings.txt.
+
+
 Image sensor nodes
 ------------------
 
@@ -114,7 +123,7 @@ Example:
 			vddio-supply = <...>;
 
 			clock-frequency = <24000000>;
-			clocks = <...>;
+			clocks = <&camclk 1>;
 			clock-names = "mclk";
 
 			port {
@@ -135,7 +144,7 @@ Example:
 			vddio-supply = <...>;
 
 			clock-frequency = <24000000>;
-			clocks = <...>;
+			clocks = <&camclk 0>;
 			clock-names = "mclk";
 
 			port {
@@ -155,6 +164,10 @@ Example:
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_port_a_clk_active>;
+
+		camclk: clock-controller {
+		       #clock-cells = 1;
+		};
 
 		/* parallel camera ports */
 		parallel-ports {

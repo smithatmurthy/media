@@ -11,6 +11,8 @@
  */
 
 #include <linux/bug.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
@@ -1438,6 +1440,86 @@ static int fimc_md_get_pinctrl(struct fimc_md *fmd)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+struct cam_clk {
+	struct clk_hw hw;
+	struct fimc_md *fmd;
+};
+#define to_cam_clk(_hw) container_of(_hw, struct cam_clk, hw)
+
+static int cam_clk_prepare(struct clk_hw *hw)
+{
+	struct cam_clk *camclk = to_cam_clk(hw);
+	int ret = pm_runtime_get_sync(camclk->fmd->pmf);
+
+	return ret < 0 ? ret : 0;
+}
+
+static void cam_clk_unprepare(struct clk_hw *hw)
+{
+	struct cam_clk *camclk = to_cam_clk(hw);
+	pm_runtime_put_sync(camclk->fmd->pmf);
+}
+
+static const struct clk_ops cam_clk_ops = {
+	.prepare = cam_clk_prepare,
+	.unprepare = cam_clk_unprepare,
+};
+
+static const char *cam_clk_p_names[] = { "sclk_cam0", "sclk_cam1" };
+
+static int fimc_md_register_clk_provider(struct fimc_md *fmd)
+{
+	struct cam_clk_provider *clk_provider = &fmd->clk_provider;
+	struct device *dev = &fmd->pdev->dev;
+	struct device_node *node;
+	unsigned int nclocks;
+
+	node = of_get_child_by_name(dev->of_node, "clock-controller");
+	if (!node) {
+		dev_warn(dev, "clock-controller node at %s not found\n",
+					dev->of_node->full_name);
+		return 0;
+	}
+	/* Instantiate the clocks */
+	for (nclocks = 0; nclocks < FIMC_MAX_CAMCLKS; nclocks++) {
+		struct clk_init_data init;
+		char clk_name[16];
+		struct clk *clk;
+		struct cam_clk *camclk;
+
+		camclk = devm_kzalloc(dev, sizeof(*camclk), GFP_KERNEL);
+		if (!camclk)
+			return -ENOMEM;
+
+		snprintf(clk_name, sizeof(clk_name), "cam_clkout%d", nclocks);
+
+		init.name = clk_name;
+		init.ops = &cam_clk_ops;
+		init.flags = CLK_SET_RATE_PARENT;
+		init.parent_names = &cam_clk_p_names[nclocks];
+		init.num_parents = 1;
+		camclk->hw.init = &init;
+		camclk->fmd = fmd;
+
+		clk = devm_clk_register(dev, &camclk->hw);
+		if (IS_ERR(clk)) {
+			kfree(camclk);
+			return PTR_ERR(clk);
+		}
+		clk_provider->clks[nclocks] = clk;
+	}
+
+	clk_provider->clk_data.clks = clk_provider->clks;
+	clk_provider->clk_data.clk_num = nclocks;
+
+	return of_clk_add_provider(node, of_clk_src_onecell_get,
+					&clk_provider->clk_data);
+}
+#else
+#define fimc_md_register_clk_provider(fmd) (0)
+#endif
+
 static int fimc_md_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1465,16 +1547,24 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	fmd->use_isp = fimc_md_is_isp_available(dev->of_node);
 
+	ret = fimc_md_register_clk_provider(fmd);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "clock provider registration failed\n");
+		return ret;
+	}
+
 	ret = v4l2_device_register(dev, &fmd->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
 		return ret;
 	}
+
 	ret = media_device_register(&fmd->media_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register media device: %d\n", ret);
 		goto err_md;
 	}
+
 	ret = fimc_md_get_clocks(fmd);
 	if (ret)
 		goto err_clk;
@@ -1508,6 +1598,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	ret = fimc_md_create_links(fmd);
 	if (ret)
 		goto err_unlock;
+
 	ret = v4l2_device_register_subdev_nodes(&fmd->v4l2_dev);
 	if (ret)
 		goto err_unlock;
@@ -1528,6 +1619,7 @@ err_clk:
 	media_device_unregister(&fmd->media_dev);
 err_md:
 	v4l2_device_unregister(&fmd->v4l2_dev);
+	fimc_md_unregister_clk_provider(fmd);
 	return ret;
 }
 
