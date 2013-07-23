@@ -177,6 +177,35 @@
 		};
 	};
 
+	i2c@13860000 {
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <400000>;
+		pinctrl-0 = <&i2c0_bus>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		m5mols@1f {
+			compatible = "fujitsu,m5mols";
+			reg = <0x1f>;
+			interrupt-parent = <&gpx1>;
+			interrupts = <5 1>;
+			core-supply = <&camisp_breg>;
+			dig_18-supply = <&vcam_reg>;
+			d_sensor-supply = <&camsensor_reg>;
+			dig_28-supply = <&cam_af_28v_reg>;
+			a_sensor-supply = <&cam_io_en_reg>;
+			dig_12-supply = <&cam_io_12v_reg>;
+			gpios = <&gpy3 7 1>;
+			clock-frequency = <24000000>;
+
+			port {
+				m5mols_ep: endpoint {
+					remote-endpoint = <&m5mols_ep>;
+				};
+			};
+		};
+	};
+
 	i2c@13890000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-slave-addr = <0x10>;
@@ -398,6 +427,23 @@
 
 		fimc_3: fimc@11830000 {
 			status = "okay";
+		};
+
+		csis_0: csis@11880000 {
+			vddcore-supply = <&vusb_reg>;
+			vddio-supply = <&vmipi_reg>;
+			clock-frequency = <160000000>;
+			status = "okay";
+
+			/* Camera C (3) MIPI CSI-2 (CSIS0) */
+			port@3 {
+				reg = <3>;
+				csis0_ep: endpoint {
+					remote-endpoint = <&m5mols_ep>;
+					data-lanes = <1 2>;
+					samsung,csis-hs-settle = <12>;
+				};
+			};
 		};
 
 		csis_1: csis@11890000 {
