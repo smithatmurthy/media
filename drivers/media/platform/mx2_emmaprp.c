@@ -253,20 +253,6 @@ static void emmaprp_job_abort(void *priv)
 	v4l2_m2m_job_finish(pcdev->m2m_dev, ctx->m2m_ctx);
 }
 
-static void emmaprp_lock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void emmaprp_unlock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_unlock(&pcdev->dev_mutex);
-}
-
 static inline void emmaprp_dump_regs(struct emmaprp_dev *pcdev)
 {
 	dprintk(pcdev,
@@ -617,52 +603,6 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	return vidioc_s_fmt(priv, f);
 }
 
-static int vidioc_reqbufs(struct file *file, void *priv,
-			  struct v4l2_requestbuffers *reqbufs)
-{
-	struct emmaprp_ctx *ctx = priv;
-
-	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
-}
-
-static int vidioc_querybuf(struct file *file, void *priv,
-			   struct v4l2_buffer *buf)
-{
-	struct emmaprp_ctx *ctx = priv;
-
-	return v4l2_m2m_querybuf(file, ctx->m2m_ctx, buf);
-}
-
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
-{
-	struct emmaprp_ctx *ctx = priv;
-
-	return v4l2_m2m_qbuf(file, ctx->m2m_ctx, buf);
-}
-
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
-{
-	struct emmaprp_ctx *ctx = priv;
-
-	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
-}
-
-static int vidioc_streamon(struct file *file, void *priv,
-			   enum v4l2_buf_type type)
-{
-	struct emmaprp_ctx *ctx = priv;
-
-	return v4l2_m2m_streamon(file, ctx->m2m_ctx, type);
-}
-
-static int vidioc_streamoff(struct file *file, void *priv,
-			    enum v4l2_buf_type type)
-{
-	struct emmaprp_ctx *ctx = priv;
-
-	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
-}
-
 static const struct v4l2_ioctl_ops emmaprp_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 
@@ -676,14 +616,13 @@ static const struct v4l2_ioctl_ops emmaprp_ioctl_ops = {
 	.vidioc_try_fmt_vid_out	= vidioc_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out	= vidioc_s_fmt_vid_out,
 
-	.vidioc_reqbufs		= vidioc_reqbufs,
-	.vidioc_querybuf	= vidioc_querybuf,
+	.vidioc_reqbufs		= v4l2_m2m_ioctl_reqbufs,
+	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
+	.vidioc_qbuf		= v4l2_m2m_ioctl_qbuf,
+	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
 
-	.vidioc_qbuf		= vidioc_qbuf,
-	.vidioc_dqbuf		= vidioc_dqbuf,
-
-	.vidioc_streamon	= vidioc_streamon,
-	.vidioc_streamoff	= vidioc_streamoff,
+	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff	= v4l2_m2m_ioctl_streamoff,
 };
 
 
@@ -767,6 +706,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &emmaprp_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &ctx->dev->dev_mutex;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -779,6 +719,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &emmaprp_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &ctx->dev->dev_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -812,6 +753,7 @@ static int emmaprp_open(struct file *file)
 		kfree(ctx);
 		return ret;
 	}
+	/* TODO: Assign fh->m2m_ctx, needs conversion to struct v4l2_fh first */
 
 	clk_prepare_enable(pcdev->clk_emma_ipg);
 	clk_prepare_enable(pcdev->clk_emma_ahb);
@@ -841,39 +783,13 @@ static int emmaprp_release(struct file *file)
 	return 0;
 }
 
-static unsigned int emmaprp_poll(struct file *file,
-				 struct poll_table_struct *wait)
-{
-	struct emmaprp_dev *pcdev = video_drvdata(file);
-	struct emmaprp_ctx *ctx = file->private_data;
-	unsigned int res;
-
-	mutex_lock(&pcdev->dev_mutex);
-	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
-	mutex_unlock(&pcdev->dev_mutex);
-	return res;
-}
-
-static int emmaprp_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct emmaprp_dev *pcdev = video_drvdata(file);
-	struct emmaprp_ctx *ctx = file->private_data;
-	int ret;
-
-	if (mutex_lock_interruptible(&pcdev->dev_mutex))
-		return -ERESTARTSYS;
-	ret = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
-	mutex_unlock(&pcdev->dev_mutex);
-	return ret;
-}
-
 static const struct v4l2_file_operations emmaprp_fops = {
 	.owner		= THIS_MODULE,
 	.open		= emmaprp_open,
 	.release	= emmaprp_release,
-	.poll		= emmaprp_poll,
+	.poll		= v4l2_m2m_fop_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap		= emmaprp_mmap,
+	.mmap		= v4l2_m2m_fop_mmap,
 };
 
 static struct video_device emmaprp_videodev = {
@@ -888,8 +804,6 @@ static struct video_device emmaprp_videodev = {
 static struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= emmaprp_device_run,
 	.job_abort	= emmaprp_job_abort,
-	.lock		= emmaprp_lock,
-	.unlock		= emmaprp_unlock,
 };
 
 static int emmaprp_probe(struct platform_device *pdev)
