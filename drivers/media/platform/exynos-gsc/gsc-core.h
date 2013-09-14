@@ -41,8 +41,6 @@
 #define DEFAULT_CSC_RANGE		1
 
 #define GSC_PARAMS			(1 << 0)
-#define GSC_SRC_FMT			(1 << 1)
-#define GSC_DST_FMT			(1 << 2)
 #define GSC_CTX_M2M			(1 << 3)
 #define GSC_CTX_STOP_REQ		(1 << 6)
 

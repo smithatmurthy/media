@@ -341,11 +341,7 @@ static int gsc_m2m_s_fmt_mplane(struct file *file, void *fh,
 		frame->payload[i] = pix->plane_fmt[i].sizeimage;
 
 	gsc_set_frame_size(frame, pix->width, pix->height);
-
-	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		gsc_ctx_state_lock_set(GSC_PARAMS | GSC_DST_FMT, ctx);
-	else
-		gsc_ctx_state_lock_set(GSC_PARAMS | GSC_SRC_FMT, ctx);
+	gsc_ctx_state_lock_set(GSC_PARAMS, ctx);
 
 	pr_debug("f_w: %d, f_h: %d", frame->f_width, frame->f_height);
 
@@ -357,21 +353,13 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 {
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	struct gsc_frame *frame;
 	u32 max_cnt;
 
 	max_cnt = (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
 		gsc->variant->in_buf_cnt : gsc->variant->out_buf_cnt;
 	if (reqbufs->count > max_cnt) {
 		return -EINVAL;
-	} else if (reqbufs->count == 0) {
-		if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-			gsc_ctx_state_lock_clear(GSC_SRC_FMT, ctx);
-		else
-			gsc_ctx_state_lock_clear(GSC_DST_FMT, ctx);
 	}
-
-	frame = ctx_get_frame(ctx, reqbufs->type);
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
@@ -527,24 +515,22 @@ static int gsc_m2m_s_selection(struct file *file, void *fh,
 	}
 
 	/* Check to see if scaling ratio is within supported range */
-	if (gsc_ctx_state_is_set(GSC_DST_FMT | GSC_SRC_FMT, ctx)) {
-		if (s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-			ret = gsc_check_scaler_ratio(variant, cr.c.width,
-				cr.c.height, ctx->d_frame.crop.width,
-				ctx->d_frame.crop.height,
-				ctx->gsc_ctrls.rotate->val, ctx->out_path);
-		} else {
-			ret = gsc_check_scaler_ratio(variant,
-				ctx->s_frame.crop.width,
-				ctx->s_frame.crop.height, cr.c.width,
-				cr.c.height, ctx->gsc_ctrls.rotate->val,
-				ctx->out_path);
-		}
+	if (s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		ret = gsc_check_scaler_ratio(variant, cr.c.width,
+			cr.c.height, ctx->d_frame.crop.width,
+			ctx->d_frame.crop.height,
+			ctx->gsc_ctrls.rotate->val, ctx->out_path);
+	} else {
+		ret = gsc_check_scaler_ratio(variant,
+			ctx->s_frame.crop.width,
+			ctx->s_frame.crop.height, cr.c.width,
+			cr.c.height, ctx->gsc_ctrls.rotate->val,
+			ctx->out_path);
+	}
 
-		if (ret) {
-			pr_err("Out of scaler range");
-			return -EINVAL;
-		}
+	if (ret < 0) {
+		pr_err("Out of scaler range");
+		return ret;
 	}
 
 	frame->crop = cr.c;

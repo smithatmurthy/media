@@ -698,7 +698,6 @@ static int __gsc_s_ctrl(struct gsc_ctx *ctx, struct v4l2_ctrl *ctrl)
 {
 	struct gsc_dev *gsc = ctx->gsc_dev;
 	struct gsc_variant *variant = gsc->variant;
-	unsigned int flags = GSC_DST_FMT | GSC_SRC_FMT;
 	int ret = 0;
 
 	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
@@ -714,18 +713,15 @@ static int __gsc_s_ctrl(struct gsc_ctx *ctx, struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_ROTATE:
-		if ((ctx->state & flags) == flags) {
-			ret = gsc_check_scaler_ratio(variant,
+		ret = gsc_check_scaler_ratio(variant,
 					ctx->s_frame.crop.width,
 					ctx->s_frame.crop.height,
 					ctx->d_frame.crop.width,
 					ctx->d_frame.crop.height,
 					ctx->gsc_ctrls.rotate->val,
 					ctx->out_path);
-
-			if (ret)
-				return -EINVAL;
-		}
+		if (ret < 0)
+			return ret;
 
 		ctx->rotation = ctrl->val;
 		break;
