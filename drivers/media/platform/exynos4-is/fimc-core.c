@@ -1042,31 +1042,19 @@ static int fimc_runtime_resume(struct device *dev)
 
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
 
-	/* Enable clocks and perform basic initalization */
 	clk_enable(fimc->clock[CLK_GATE]);
 	fimc_hw_reset(fimc);
-
-	/* Resume the capture or mem-to-mem device */
-	if (fimc_capture_busy(fimc))
-		return fimc_capture_resume(fimc);
-
-	return fimc_m2m_resume(fimc);
+	return 0;
 }
 
 static int fimc_runtime_suspend(struct device *dev)
 {
 	struct fimc_dev *fimc =	dev_get_drvdata(dev);
-	int ret = 0;
-
-	if (fimc_capture_busy(fimc))
-		ret = fimc_capture_suspend(fimc);
-	else
-		ret = fimc_m2m_suspend(fimc);
-	if (!ret)
-		clk_disable(fimc->clock[CLK_GATE]);
 
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
-	return ret;
+
+	clk_disable(fimc->clock[CLK_GATE]);
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
