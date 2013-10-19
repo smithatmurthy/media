@@ -1546,6 +1546,21 @@ static int fimc_md_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int fimc_md_pm_prepare(struct device *dev)
+{
+	return 0;
+}
+
+static void fimc_md_pm_complete(struct device *dev)
+{
+
+}
+
+static const struct dev_pm_ops fimc_md_pm_ops = {
+	.prepare	= fimc_md_pm_prepare,
+	.complete	= fimc_md_pm_complete,
+};
+
 static struct platform_device_id fimc_driver_ids[] __always_unused = {
 	{ .name = "s5p-fimc-md" },
 	{ },
@@ -1565,6 +1580,7 @@ static struct platform_driver fimc_md_driver = {
 		.of_match_table = of_match_ptr(fimc_md_of_match),
 		.name		= "s5p-fimc-md",
 		.owner		= THIS_MODULE,
+		.pm		= &fimc_md_pm_ops,
 	}
 };
 
