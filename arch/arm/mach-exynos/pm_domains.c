@@ -74,7 +74,7 @@ static int exynos_pd_power_off(struct generic_pm_domain *domain)
 	return exynos_pd_power(domain, false);
 }
 
-static void exynos_add_device_to_domain(struct exynos_pm_domain *pd,
+static int exynos_add_device_to_domain(struct exynos_pm_domain *pd,
 					 struct device *dev)
 {
 	int ret;
@@ -89,6 +89,7 @@ static void exynos_add_device_to_domain(struct exynos_pm_domain *pd,
 	}
 
 	pm_genpd_dev_need_restore(dev, true);
+	return ret;
 }
 
 static void exynos_remove_device_from_domain(struct device *dev)
@@ -115,11 +116,18 @@ static void exynos_read_domain_from_dt(struct device *dev)
 	node = of_parse_phandle(dev->of_node, "samsung,power-domain", 0);
 	if (!node)
 		return;
+
 	pd_pdev = of_find_device_by_node(node);
 	if (!pd_pdev)
 		return;
+
 	pd = platform_get_drvdata(pd_pdev);
-	exynos_add_device_to_domain(pd, dev);
+
+	if (exynos_add_device_to_domain(pd, dev) != -ENOSYS)
+		return;
+
+	if (!(readl_relaxed(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN))
+		exynos_pd_power(&pd->pd, true);
 }
 
 static int exynos_pm_notifier_call(struct notifier_block *nb,
