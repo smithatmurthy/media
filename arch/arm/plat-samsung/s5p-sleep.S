@@ -80,7 +80,9 @@ ENTRY(s3c_cpu_resume)
 	str	r2, [r1, #L2X0_CTRL]
 resume_l2on:
 #endif
+#ifdef CONFIG_PM
 	b	cpu_resume
+#endif
 ENDPROC(s3c_cpu_resume)
 #ifdef CONFIG_CACHE_L2X0
 	.globl l2x0_regs_phys
