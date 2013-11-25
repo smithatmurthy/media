@@ -29,7 +29,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "jpeg-core.h"
-#include "jpeg-hw.h"
+#include "jpeg-hw-s5p.h"
 
 static struct s5p_jpeg_fmt formats_enc[] = {
 	{
