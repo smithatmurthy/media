@@ -32,6 +32,21 @@ way around.
 
 The 'camera' node must include at least one 'fimc' child node.
 
+Optional properties:
+
+- #clock-cells: from the common clock bindings (../clock/clock-bindings.txt),
+  must be 1. A clock provider is associated with the 'camera' node and it should
+  be referenced by external sensors that use clocks provided by the SoC on
+  CAM_*_CLKOUT pins. The clock specifier cell stores an index of a clock.
+  The indices are 0, 1 for CAM_A_CLKOUT, CAM_B_CLKOUT clocks respectively.
+
+- clock-output-names: from the common clock bindings, should contain names of
+  clocks registered by the camera subsystem corresponding to CAM_A_CLKOUT,
+  CAM_B_CLKOUT output clocks respectively.
+
+Note: #clock-cells and clock-output-names are mandatory properties if external
+image sensor devices reference 'camera' device node as a clock provider.
+
 'fimc' device nodes
 -------------------
 
@@ -97,8 +112,8 @@ Image sensor nodes
 The sensor device nodes should be added to their control bus controller (e.g.
 I2C0) nodes and linked to a port node in the csis or the parallel-ports node,
 using the common video interfaces bindings, defined in video-interfaces.txt.
-The implementation of this bindings requires clock-frequency property to be
-present in the sensor device nodes.
+An optional clock-frequency property needs to be present in the sensor device
+nodes. Default value when this property is not present is 24 MHz.
 
 Example:
 
@@ -114,7 +129,7 @@ Example:
 			vddio-supply = <...>;
 
 			clock-frequency = <24000000>;
-			clocks = <...>;
+			clocks = <&camera 1>;
 			clock-names = "mclk";
 
 			port {
@@ -135,7 +150,7 @@ Example:
 			vddio-supply = <...>;
 
 			clock-frequency = <24000000>;
-			clocks = <...>;
+			clocks = <&camera 0>;
 			clock-names = "mclk";
 
 			port {
@@ -149,12 +164,15 @@ Example:
 
 	camera {
 		compatible = "samsung,fimc", "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		status = "okay";
-
+		clocks = <&clock 132>, <&clock 133>;
+		clock-names = "sclk_cam0", "sclk_cam1";
+		#clock-cells = <1>;
+		clock-output-names = "cam_mclk_a", "cam_mclk_b";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_port_a_clk_active>;
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		/* parallel camera ports */
 		parallel-ports {
