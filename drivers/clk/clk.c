@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/sched.h>
 
 #include "clk.h"
@@ -2526,6 +2527,98 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 	return clk_name;
 }
 EXPORT_SYMBOL_GPL(of_clk_get_parent_name);
+
+static void __of_clk_assigned_config_set(struct clk *clk, struct clk *pclk,
+					 u32 rate)
+{
+	int rc;
+
+	if (rate) {
+		rc = clk_set_rate(clk, rate);
+		if (rc < 0)
+			pr_err("clk: couldn't set rate of clock %s (%d)\n",
+			       __clk_get_name(clk), rc);
+		else
+			pr_debug("clk: set rate of clock %s to %u\n",
+				 __clk_get_name(clk), rate);
+	}
+
+	if (!IS_ERR(pclk)) {
+		rc = clk_set_parent(clk, pclk);
+		if (rc < 0)
+			pr_err("clk: couldn't set %s as parent of %s (%d)\n",
+			       __clk_get_name(pclk), __clk_get_name(clk), rc);
+		else
+			pr_debug("clk: set %s as parent of %s\n",
+				 __clk_get_name(pclk), __clk_get_name(clk));
+	}
+}
+
+static void of_clk_assigned_config_parse(struct device_node *node)
+{
+	char prop_name[OF_PROP_NAME_MAXLEN];
+	struct property *prop;
+	const char *clk_name;
+	int rc, index = 0;
+
+	of_property_for_each_string(node, "clock-names", prop, clk_name) {
+		struct clk *clk, *pclk;
+		u32 rate = 0;
+
+		snprintf(prop_name, OF_PROP_NAME_MAXLEN,
+					"%s-clk-parent", clk_name);
+
+		pclk = of_clk_get_by_property(node, prop_name, 0);
+
+		snprintf(prop_name, OF_PROP_NAME_MAXLEN,
+					"%s-clk-rate", clk_name);
+		rc = of_property_read_u32(node, prop_name, &rate);
+
+		if (!rc || !IS_ERR(pclk)) {
+			/*
+			 * Assuming here of_property_for_each_string() returns
+			 * consecutive values of a DT property in ascending
+			 * index order.
+			 */
+			clk = of_clk_get(node, index);
+
+			if (!IS_ERR(clk))
+				__of_clk_assigned_config_set(clk, pclk, rate);
+			else
+				pr_err("clk: couldn't get clk %s\n", clk_name);
+		}
+		index++;
+	}
+}
+
+
+static int of_clk_setup_notifier_call(struct notifier_block *nb,
+					unsigned long event, void *data)
+{
+	struct device *dev = data;
+
+	if (!dev->of_node)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case BUS_NOTIFY_BIND_DRIVER:
+		/* Parse and configure DT assigned clock parents and rates */
+		of_clk_assigned_config_parse(dev->of_node);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block of_clk_setup_nb = {
+	.notifier_call = of_clk_setup_notifier_call,
+};
+
+int __init of_clk_setup_notifier_init(void)
+{
+	return bus_register_notifier(&platform_bus_type, &of_clk_setup_nb);
+}
+subsys_initcall(of_clk_setup_notifier_init);
 
 /**
  * of_clk_init() - Scan and init clock providers from the DT
