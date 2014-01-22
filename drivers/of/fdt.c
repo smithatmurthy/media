@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -438,6 +439,150 @@ int __initdata dt_root_size_cells;
 struct boot_param_header *initial_boot_params;
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
+#if defined(CONFIG_HAVE_MEMBLOCK)
+int __init __weak
+early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t size,
+				  bool nomap)
+{
+	if (memblock_is_region_reserved(base, size))
+		return -EBUSY;
+	if (nomap)
+		return memblock_remove(base, size);
+	return memblock_reserve(base, size);
+}
+#else
+int __init __weak
+early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t size,
+				  bool nomap)
+{
+	pr_error("Reserved memory not supported, ignoring range 0x%llx - 0x%llx%s\n",
+		  base, size, nomap ? " (nomap)" : "");
+	return -ENOSYS;
+}
+#endif
+
+/**
+ * res_mem_reserve_reg() - reserve all memory described in 'reg' property
+ */
+static int __init
+__reserved_mem_reserve_reg(unsigned long node, const char *uname,
+		    phys_addr_t *res_base, phys_addr_t *res_size)
+{
+	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
+	phys_addr_t base, size;
+	unsigned long len;
+	__be32 *prop;
+	int nomap;
+
+	prop = of_get_flat_dt_prop(node, "reg", &len);
+	if (!prop)
+		return -ENOENT;
+
+	if (len && len % t_len != 0) {
+		pr_err("Reserved memory: invalid reg property in '%s', skipping node.\n",
+		       uname);
+		return -EINVAL;
+	}
+
+	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
+
+	/* store base and size values from the first reg tuple */
+	*res_base = 0;
+	while (len > 0) {
+		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
+		size = dt_mem_next_cell(dt_root_size_cells, &prop);
+
+		if (base && size &&
+		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
+			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
+				uname, &base, (unsigned long)size / SZ_1M);
+		else
+			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
+				uname, &base, (unsigned long)size / SZ_1M);
+
+		len -= t_len;
+
+		if (!(*res_base)) {
+			*res_base = base;
+			*res_size = size;
+		}
+	}
+	return 0;
+}
+
+static int __reserved_mem_check_root(unsigned long node)
+{
+	__be32 *prop;
+
+	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
+	if (prop && be32_to_cpup(prop) != dt_root_size_cells)
+		return -EINVAL;
+
+	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
+	if (prop && be32_to_cpup(prop) != dt_root_addr_cells)
+		return -EINVAL;
+
+	prop = of_get_flat_dt_prop(node, "ranges", NULL);
+	if (!prop)
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * fdt_scan_reserved_mem() - scan a single FDT node for reserved memory
+ */
+static int __init
+__fdt_scan_reserved_mem(unsigned long node, const char *uname, int depth,
+		      void *data)
+{
+	phys_addr_t base = 0, size = 0;
+	static int found;
+	const char *status;
+	int err;
+
+	if (!found && depth == 1 && strcmp(uname, "reserved-memory") == 0) {
+		if (__reserved_mem_check_root(node) != 0) {
+			pr_err("Reserved memory: unsupported node format, ignoring\n");
+			/* break scan */
+			return 1;
+		}
+		found = 1;
+		/* scan next node */
+		return 0;
+	} else if (!found) {
+		/* scan next node */
+		return 0;
+	} else if (found && depth < 2) {
+		/* scanning of /reserved-memory has been finished */
+		return 1;
+	}
+
+	status = of_get_flat_dt_prop(node, "status", NULL);
+	if (status && strcmp(status, "okay") != 0 && strcmp(status, "ok") != 0)
+		return 0;
+
+	err = __reserved_mem_reserve_reg(node, uname, &base, &size);
+	if (err == -ENOENT && of_get_flat_dt_prop(node, "size", NULL) == NULL)
+		goto end;
+
+	fdt_reserved_mem_save_node(node, uname, base, size);
+end:
+	/* scan next node */
+	return 0;
+}
+
+/**
+ * early_init_fdt_scan_reserved_mem() - create reserved memory regions
+ *
+ * This function grabs memory from early allocator for device exclusive use
+ * defined in device tree structures. It should be called by arch specific code
+ * once the early allocator (i.e. memblock) has been fully activated.
+ */
+void __init early_init_fdt_scan_reserved_mem(void)
+{
+	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
+	fdt_init_reserved_mem();
+}
 
 /**
  * of_scan_flat_dt - scan flattened tree blob and call callback on each.
