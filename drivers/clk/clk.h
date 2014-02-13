@@ -10,7 +10,10 @@
  */
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
+
 struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec);
 void of_clk_lock(void);
 void of_clk_unlock(void);
+struct clk *of_clk_get_by_property(struct device_node *np,
+				   const char *list_name, int index);
 #endif
