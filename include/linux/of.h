@@ -30,6 +30,9 @@
 typedef u32 phandle;
 typedef u32 ihandle;
 
+/* Maximum length of name of a property, including terminating null */
+#define OF_PROP_NAME_MAXLEN	32
+
 struct property {
 	char	*name;
 	int	length;
