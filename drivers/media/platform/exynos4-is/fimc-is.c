@@ -43,6 +43,7 @@
 
 
 static char *fimc_is_clocks[ISS_CLKS_MAX] = {
+	[ISS_CLK_SYSREG]		= "sysreg",
 	[ISS_CLK_PPMUISPX]		= "ppmuispx",
 	[ISS_CLK_PPMUISPMX]		= "ppmuispmx",
 	[ISS_CLK_LITE0]			= "lite0",
