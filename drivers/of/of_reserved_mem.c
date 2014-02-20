@@ -112,7 +112,7 @@ __reserved_mem_alloc_size(unsigned long node, const char *uname,
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
 
-	prop = of_get_flat_dt_prop(node, "align", &len);
+	prop = of_get_flat_dt_prop(node, "alignment", &len);
 	if (prop) {
 		if (len != dt_root_addr_cells * sizeof(__be32)) {
 			pr_err("Reserved memory: invalid align property in '%s' node.\n",
