@@ -170,14 +170,15 @@
 				<&clock 358>, <&clock 359>, <&clock 360>,
 				<&clock 450>,<&clock 451>, <&clock 452>,
 				<&clock 453>, <&clock 176>, <&clock 13>,
-				<&clock 454>, <&clock 395>, <&clock 455>;
+				<&clock 454>, <&clock 395>, <&clock 455>,
+				<&clock 342>;
 			clock-names = "lite0", "lite1", "ppmuispx",
 				      "ppmuispmx", "mpll", "isp",
 				      "drc", "fd", "mcuisp",
 				      "ispdiv0", "ispdiv1", "mcuispdiv0",
 				      "mcuispdiv1", "uart", "aclk200",
 				      "div_aclk200", "aclk400mcuisp",
-				      "div_aclk400mcuisp";
+				      "div_aclk400mcuisp", "sysreg";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
