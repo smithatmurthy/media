@@ -103,8 +103,12 @@
 	};
 
 	camera {
-		clocks = <&clock 132>, <&clock 133>, <&clock 351>, <&clock 352>;
-		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0", "pxl_async1";
+		clocks = <&clock 132>, <&clock 133>, <&clock 351>, <&clock 352>,
+			 <&clock 388>, <&clock 389>;
+		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0", "pxl_async1",
+			      "mout_cam0", "mout_cam1";
+		mout_cam0-clk-parent = <&clock 2>;
+		mout_cam1-clk-parent = <&clock 2>;
 
 		fimc_0: fimc@11800000 {
 			compatible = "samsung,exynos4212-fimc";
