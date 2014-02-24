@@ -78,6 +78,8 @@
 			v4l2_printk(KERN_DEBUG, dev, fmt , ## arg); 	\
 	} while (0)
 
+#define v4l2_dev_name(dev) (dev ? dev->name : "null")
+
 /* ------------------------------------------------------------------------- */
 
 /* Control helper functions */
