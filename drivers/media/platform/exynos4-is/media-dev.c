@@ -176,13 +176,16 @@ static int fimc_pipeline_s_power(struct fimc_pipeline *p, bool on)
 
 		ret = __subdev_set_power(p->subdevs[idx], on);
 
-
-		if (ret < 0 && ret != -ENXIO)
+		if (ret < 0 && ret != -ENXIO) {
+			pr_err("%s(): %s(%d) s_power(%d) failed: %d\n",
+			       __func__, v4l2_dev_name(p->subdevs[idx]),
+			       idx, on, ret);
 			goto error;
+		}
 	}
 	return 0;
 error:
-	for (; i >= 0; i--) {
+	for (--i; on && i >= 0; i--) {
 		unsigned int idx = seq[on][i];
 		__subdev_set_power(p->subdevs[idx], !on);
 	}
@@ -296,7 +299,7 @@ static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
 	}
 	return 0;
 error:
-	for (; i >= 0; i--) {
+	for (--i; i >= 0; i--) {
 		unsigned int idx = seq[on][i];
 		v4l2_subdev_call(p->subdevs[idx], video, s_stream, !on);
 	}
