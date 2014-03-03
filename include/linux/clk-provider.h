@@ -509,6 +509,7 @@ const char *of_clk_get_parent_name(struct device_node *np, int index);
 
 void of_clk_init(const struct of_device_id *matches);
 
+int of_clk_device_setup(struct device *dev);
 #else /* !CONFIG_OF */
 
 static inline int of_clk_add_provider(struct device_node *np,
@@ -537,6 +538,11 @@ static inline const char *of_clk_get_parent_name(struct device_node *np,
 }
 #define of_clk_init(matches) \
 	{ while (0); }
+
+int of_clk_device_setup(struct device *dev)
+{
+	return 0;
+}
 #endif /* CONFIG_OF */
 
 /*

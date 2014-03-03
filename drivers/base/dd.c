@@ -25,6 +25,7 @@
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/devinfo.h>
+#include <linux/clk-provider.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -275,6 +276,10 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 
 	/* If using pinctrl, bind pins now before probing */
 	ret = pinctrl_bind_pins(dev);
+	if (ret)
+		goto probe_failed;
+
+	ret = of_clk_device_setup(dev);
 	if (ret)
 		goto probe_failed;
 
