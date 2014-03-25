@@ -397,6 +397,8 @@ struct of_phandle_args;
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
 struct clk *of_clk_get(struct device_node *np, int index);
+struct clk *of_clk_get_by_property(struct device_node *np,
+				   const char *list_name, int index);
 struct clk *of_clk_get_by_name(struct device_node *np, const char *name);
 struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec);
 #else
@@ -406,6 +408,11 @@ static inline struct clk *of_clk_get(struct device_node *np, int index)
 }
 static inline struct clk *of_clk_get_by_name(struct device_node *np,
 					     const char *name)
+{
+	return ERR_PTR(-ENOENT);
+}
+static inline struct clk *of_clk_get_by_property(struct device_node *np,
+				   const char *list_name, int index)
 {
 	return ERR_PTR(-ENOENT);
 }
