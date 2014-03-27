@@ -25,6 +25,7 @@
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/devinfo.h>
+#include <linux/clk/clk-conf.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -277,6 +278,12 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	ret = pinctrl_bind_pins(dev);
 	if (ret)
 		goto probe_failed;
+
+	if (dev->of_node) {
+		ret = of_clk_device_init(dev->of_node);
+		if (ret)
+			goto probe_failed;
+	}
 
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",

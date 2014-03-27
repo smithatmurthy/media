@@ -132,3 +132,45 @@ clock signal, and a UART.
   ("pll" and "pll-switched").
 * The UART has its baud clock connected the external oscillator and its
   register clock connected to the PLL clock (the "pll-switched" signal)
+
+==Assigned clock parents and rates==
+
+Some platforms require static initial configuration of parts of the clocks
+controller. Such a configuration can be specified in a clock consumer node
+through clock-parents and clock-rates DT properties. The former should
+contain a list of parent clocks in form of phandle and clock specifier pairs,
+the latter the list of assigned clock frequency values (one cell each).
+
+    uart@a000 {
+        compatible = "fsl,imx-uart";
+        reg = <0xa000 0x1000>;
+        ...
+        clocks = <&clkcon 0>, <&clkcon 3>;
+        clock-names = "baud", "mux";
+
+        clock-parents = <0>, <&pll 1>;
+        clock-rates = <460800>;
+    };
+
+In this example the pll is set as parent of "mux" clock and frequency of "baud"
+clock is specified as 460800 Hz.
+
+Configuring a clock parent and rate through the device node that uses
+the clock can be done only for clocks that have a single user. Specifying
+conflicting parent or rate configuration in multiple consumer nodes for
+a shared clock is forbidden.
+
+Configuration of common clocks, which affect multiple consumer devices
+can be specified in a dedicated 'assigned-clocks' subnode of a clock
+provider node, e.g.:
+
+    clkcon {
+        ...
+        #clock-cells = <1>;
+
+        assigned-clocks {
+            clocks = <&clkcon 16>, <&clkcon 17>;
+            clock-parents = <0>, <&clkcon 1>;
+            clock-rates = <200000>;
+        };
+    };
