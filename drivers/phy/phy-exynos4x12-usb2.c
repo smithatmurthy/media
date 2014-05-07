@@ -87,8 +87,16 @@
 #define EXYNOS_4x12_URSTCON_OTG_PHYLINK		BIT(2)
 #define EXYNOS_4x12_URSTCON_HOST_PHY		BIT(3)
 #define EXYNOS_4x12_URSTCON_PHY1		BIT(4)
-#define EXYNOS_4x12_URSTCON_HSIC0		BIT(5)
-#define EXYNOS_4x12_URSTCON_HSIC1		BIT(6)
+/*
+ * According to Exynos 4x12 reference manual the values for
+ * EXYNOS_4x12_URSTCON_HSIC are:
+ * 	URSTCON_HSIC0 = BIT(5)
+ *	URSTCON_HSIC1 = BIT(6)
+ * but from experiments with real hardware the above 2 bitfields
+ * seems to be swapped, so define them to match the actual
+ * hardware */
+#define EXYNOS_4x12_URSTCON_HSIC1		BIT(5)
+#define EXYNOS_4x12_URSTCON_HSIC0		BIT(6)
 #define EXYNOS_4x12_URSTCON_HOST_LINK_ALL	BIT(7)
 #define EXYNOS_4x12_URSTCON_HOST_LINK_P0	BIT(8)
 #define EXYNOS_4x12_URSTCON_HOST_LINK_P1	BIT(9)
@@ -216,14 +224,15 @@ static void exynos4x12_phy_pwr(struct samsung_usb2_phy_instance *inst, bool on)
 		break;
 	case EXYNOS4x12_HSIC0:
 		phypwr =	EXYNOS_4x12_UPHYPWR_HSIC0;
-		rstbits =	EXYNOS_4x12_URSTCON_HSIC1 |
+		rstbits =	EXYNOS_4x12_URSTCON_HSIC0 |
 				EXYNOS_4x12_URSTCON_HOST_LINK_P0 |
 				EXYNOS_4x12_URSTCON_HOST_PHY;
 		break;
 	case EXYNOS4x12_HSIC1:
 		phypwr =	EXYNOS_4x12_UPHYPWR_HSIC1;
 		rstbits =	EXYNOS_4x12_URSTCON_HSIC1 |
-				EXYNOS_4x12_URSTCON_HOST_LINK_P1;
+				EXYNOS_4x12_URSTCON_HOST_LINK_P1 |
+				EXYNOS_4x12_URSTCON_HOST_PHY;
 		break;
 	};
 
@@ -263,7 +272,8 @@ static int exynos4x12_power_on(struct samsung_usb2_phy_instance *inst)
 	exynos4x12_isol(inst, 0);
 
 	/* Power on the device, as it is necessary for HSIC to work */
-	if (inst->cfg->id == EXYNOS4x12_HSIC0) {
+	if (inst->cfg->id == EXYNOS4x12_HSIC0 ||
+	    inst->cfg->id == EXYNOS4x12_HSIC1) {
 		struct samsung_usb2_phy_instance *device =
 					&drv->instances[EXYNOS4x12_DEVICE];
 		exynos4x12_phy_pwr(device, 1);
@@ -283,7 +293,8 @@ static int exynos4x12_power_off(struct samsung_usb2_phy_instance *inst)
 	exynos4x12_isol(inst, 1);
 	exynos4x12_phy_pwr(inst, 0);
 
-	if (inst->cfg->id == EXYNOS4x12_HSIC0 && !device->enabled) {
+	if ((inst->cfg->id == EXYNOS4x12_HSIC0 ||
+	     inst->cfg->id == EXYNOS4x12_HSIC1) && !device->enabled) {
 		exynos4x12_isol(device, 1);
 		exynos4x12_phy_pwr(device, 0);
 	}
