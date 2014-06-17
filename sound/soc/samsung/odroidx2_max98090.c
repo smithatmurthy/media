@@ -1,0 +1,191 @@
+/*
+ * Copyright (C) 2014 Samsung Electronics Co., Ltd.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+#include <linux/of.h>
+#include <linux/module.h>
+#include <sound/soc.h>
+#include <sound/pcm_params.h>
+#include "i2s.h"
+
+struct odroidx2_drv_data {
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	unsigned int num_dapm_widgets;
+};
+
+/* The I2S CDCLK output clock frequency to the MAX98090 codec. */
+#define MAX98090_MCLK 19200000
+
+static int odroidx2_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	int ret;
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, MAX98090_MCLK,
+						SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		dev_err(codec_dai->dev,
+			"Unable to switch to FLL1: %d\n", ret);
+		return ret;
+	}
+
+	/* Set the cpu DAI configuration in order to use CDCLK */
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_CDCLK,
+					0, SND_SOC_CLOCK_OUT);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(codec_dai->dev, "HiFi DAI %s params: channels: %d, rate: %d\n",
+		snd_pcm_stream_str(substream), params_channels(params),
+		params_rate(params));
+
+	return 0;
+}
+
+static struct snd_soc_ops odroidx2_ops = {
+	.hw_params	= odroidx2_hw_params,
+};
+
+static const struct snd_soc_dapm_widget odroidx2_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_MIC("DMIC", NULL),
+};
+
+static const struct snd_soc_dapm_widget odroidu3_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_SPK("Speakers", NULL),
+};
+
+static struct snd_soc_dai_link odroidx2_dai[] = {
+	{
+		.name		= "MAX98090",
+		.stream_name	= "MAX98090 PCM",
+		.codec_dai_name	= "HiFi",
+		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				  SND_SOC_DAIFMT_CBM_CFM,
+		.ops		= &odroidx2_ops,
+	}
+};
+
+static struct snd_soc_card odroidx2 = {
+	.owner		= THIS_MODULE,
+	.dai_link	= odroidx2_dai,
+	.num_links	= ARRAY_SIZE(odroidx2_dai),
+	.fully_routed	= true,
+};
+
+struct odroidx2_drv_data odroidx2_drvdata = {
+	.dapm_widgets		= odroidx2_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(odroidx2_dapm_widgets),
+};
+
+struct odroidx2_drv_data odroidu3_drvdata = {
+	.dapm_widgets		= odroidu3_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(odroidu3_dapm_widgets),
+};
+
+static const struct of_device_id odroidx2_audio_of_match[] = {
+	{
+		.compatible	= "samsung,odroidx2-audio",
+		.data		= &odroidx2_drvdata,
+	}, {
+		.compatible	= "samsung,odroidu3-audio",
+		.data		= &odroidu3_drvdata,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, odroidx2_audio_of_match);
+
+static int odroidx2_audio_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct snd_soc_card *card = &odroidx2;
+	struct odroidx2_drv_data *dd;
+	const struct of_device_id *of_id;
+	int ret;
+
+	card->dev = &pdev->dev;
+
+	of_id = of_match_node(odroidx2_audio_of_match, np);
+	dd = (struct odroidx2_drv_data *)of_id->data;
+
+	card->dapm_widgets = dd->dapm_widgets;
+	card->num_dapm_widgets = dd->num_dapm_widgets;
+
+	ret = snd_soc_of_parse_card_name(card, "samsung,model");
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_of_parse_audio_routing(card, "samsung,audio-routing");
+	if (ret < 0)
+		return ret;
+
+	odroidx2_dai[0].codec_of_node = of_parse_phandle(np,
+						"samsung,audio-codec", 0);
+	if (!odroidx2_dai[0].codec_of_node) {
+		dev_err(&pdev->dev,
+			"Property 'samsung,audio-codec' missing or invalid\n");
+		return -EINVAL;
+	}
+
+	odroidx2_dai[0].cpu_of_node = of_parse_phandle(np,
+						"samsung,i2s-controller", 0);
+	if (!odroidx2_dai[0].cpu_of_node) {
+		dev_err(&pdev->dev,
+			"Property 'samsung,i2s-controller' missing or invalid\n");
+		ret = -EINVAL;
+		goto err_put_cod_n;
+	}
+
+	odroidx2_dai[0].platform_of_node = odroidx2_dai[0].cpu_of_node;
+
+	ret = snd_soc_register_card(card);
+	if (ret) {
+		dev_err(&pdev->dev, "snd_soc_register_card failed: %d\n", ret);
+		goto err_put_cpu_n;
+	}
+
+	return 0;
+
+err_put_cpu_n:
+	of_node_put(odroidx2_dai[0].cpu_of_node);
+err_put_cod_n:
+	of_node_put(odroidx2_dai[0].codec_of_node);
+	return ret;
+}
+
+static int odroidx2_audio_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+
+	of_node_put(odroidx2_dai[0].cpu_of_node);
+	of_node_put(odroidx2_dai[0].codec_of_node);
+
+	return 0;
+}
+
+static struct platform_driver odroidx2_audio_driver = {
+	.driver = {
+		.name		= "odroidx2-audio",
+		.owner		= THIS_MODULE,
+		.of_match_table	= odroidx2_audio_of_match,
+	},
+	.probe	= odroidx2_audio_probe,
+	.remove	= odroidx2_audio_remove,
+};
+module_platform_driver(odroidx2_audio_driver);
+
+MODULE_AUTHOR("Chen Zhen <zhen1.chen@samsung.com>");
+MODULE_DESCRIPTION("ALSA SoC Odroid X2/U3 Audio Support");
+MODULE_LICENSE("GPL v2");
