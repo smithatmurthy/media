@@ -117,6 +117,8 @@
 			(EXYNOS_ARM_COMMON_CONFIGURATION + (0x80 * (_nr)))
 #define EXYNOS_COMMON_STATUS(_nr)		\
 			(EXYNOS_COMMON_CONFIGURATION(_nr) + 0x4)
+#define EXYNOS_COMMON_OPTION(_nr)		\
+			(EXYNOS_COMMON_CONFIGURATION(_nr) + 0x8)
 
 #define S5P_PAD_RET_MAUDIO_OPTION		S5P_PMUREG(0x3028)
 #define S5P_PAD_RET_GPIO_OPTION			S5P_PMUREG(0x3108)
@@ -322,5 +324,14 @@
 #define EXYNOS5_OPTION_USE_RETENTION				(1 << 4)
 
 #define EXYNOS5420_SWRESET_KFC_SEL				0x3
+
+#include <asm/cputype.h>
+#define MAX_CPUS_IN_CLUSTER	4
+
+static inline unsigned int exynos_pmu_cpunr(unsigned int mpidr)
+{
+	return ((MPIDR_AFFINITY_LEVEL(mpidr, 1) * MAX_CPUS_IN_CLUSTER)
+		 + MPIDR_AFFINITY_LEVEL(mpidr, 0));
+}
 
 #endif /* __ASM_ARCH_REGS_PMU_H */
