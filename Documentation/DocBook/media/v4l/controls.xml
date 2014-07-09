@@ -4300,6 +4300,17 @@ interface and may change in the future.</para>
     	    is strobing at the moment or not. This is a read-only
     	    control.</entry>
     	  </row>
+          <row>
+            <entry spanname="id"><constant>V4L2_CID_FLASH_STROBE_PROVIDER</constant></entry>
+            <entry>menu</entry>
+          </row>
+          <row>
+            <entry spanname="descr">Provider of the external strobe signal. If a flash
+            device declares more than one available external strobe signal provider then
+            this control allows to select the active one. &VIDIOC-QUERYCTRL; has to be
+            used to get the list of available strobe providers.
+            </entry>
+          </row>
     	  <row>
     	    <entry spanname="id"><constant>V4L2_CID_FLASH_TIMEOUT</constant></entry>
     	    <entry>integer</entry>
