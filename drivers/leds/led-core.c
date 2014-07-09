@@ -143,6 +143,21 @@ int led_update_brightness(struct led_classdev *led_cdev)
 	return ret;
 }
 EXPORT_SYMBOL(led_update_brightness);
+
+int led_set_torch_brightness(struct led_classdev *led_cdev,
+				enum led_brightness brightness)
+{
+	int ret = 0;
+
+	led_cdev->brightness = min(brightness, led_cdev->max_brightness);
+
+	if (!(led_cdev->flags & LED_SUSPENDED))
+		ret = led_cdev->torch_brightness_set(led_cdev,
+						     led_cdev->brightness);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(led_set_torch_brightness);
+
 /* Caller must ensure led_cdev->led_lock held */
 void led_sysfs_lock(struct led_classdev *led_cdev)
 {

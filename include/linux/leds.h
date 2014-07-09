@@ -44,11 +44,21 @@ struct led_classdev {
 #define LED_BLINK_ONESHOT_STOP	(1 << 18)
 #define LED_BLINK_INVERT	(1 << 19)
 #define LED_SYSFS_LOCK		(1 << 20)
+#define LED_DEV_CAP_TORCH	(1 << 21)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
+	/*
+	 * Set LED brightness immediately - it is required for flash led
+	 * devices as they require setting torch brightness to have immediate
+	 * effect. brightness_set op cannot be used for this purpose because
+	 * the led drivers schedule a work queue task in it to allow for
+	 * being called from led-triggers, i.e. from the timer irq context.
+	 */
+	int		(*torch_brightness_set)(struct led_classdev *led_cdev,
+					enum led_brightness brightness);
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
@@ -156,6 +166,18 @@ extern void led_set_brightness(struct led_classdev *led_cdev,
  */
 extern int led_update_brightness(struct led_classdev *led_cdev);
 
+/**
+ * led_set_torch_brightness - set torch LED brightness
+ * @led_cdev: the LED to set
+ * @brightness: the brightness to set it to
+ *
+ * Returns: 0 on success or negative error value on failure
+ *
+ * Set a torch LED's brightness.
+ */
+extern int led_set_torch_brightness(struct led_classdev *led_cdev,
+					enum led_brightness brightness);
+/**
  * led_sysfs_lock - lock LED sysfs interface
  * @led_cdev: the LED to set
  *

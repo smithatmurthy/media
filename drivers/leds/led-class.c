@@ -44,15 +44,29 @@ static ssize_t brightness_store(struct device *dev,
 
 	mutex_lock(&led_cdev->led_lock);
 
+	/*
+	 * Having LED_DEV_CAP_TORCH implies this is LED Flash Class
+	 * device and we need to check sysfs accessibility.
+	 */
+	if (led_cdev->flags & LED_DEV_CAP_TORCH) {
+		if (led_sysfs_is_locked(led_cdev)) {
+			ret = -EBUSY;
+			goto unlock;
+		}
+	}
+
 	ret = kstrtoul(buf, 10, &state);
 	if (ret)
 		goto unlock;
 
 	if (state == LED_OFF)
 		led_trigger_remove(led_cdev);
-	__led_set_brightness(led_cdev, state);
 
-	return size;
+	if (led_cdev->flags & LED_DEV_CAP_TORCH)
+		ret = led_set_torch_brightness(led_cdev, state);
+	else
+		__led_set_brightness(led_cdev, state);
+
 	ret = size;
 unlock:
 	mutex_unlock(&led_cdev->led_lock);
