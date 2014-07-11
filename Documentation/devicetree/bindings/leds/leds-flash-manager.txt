@@ -1,0 +1,165 @@
+* LED Flash Manager
+
+Flash manager is a part of LED Flash Class. It maintains
+all the flash led devices which have their external strobe
+signals routed through multiplexing devices.
+The multiplexers are aggregated in the standalone 'flash_muxes'
+node as subnodes which are referenced by the flash led devices.
+
+
+flash_muxes node
+----------------
+
+muxN subnode
+------------
+
+There must be at least one muxN subnode, where N is the identifier
+of the node, present in the flash_muxes node. One muxN node
+represents one multiplexer.
+
+Required properties (mutually exclusive):
+- gpios		: specifies the gpio pins used to set the states
+		  of mux selectors, LSB first
+- mux-async	: phandle to the node of the multiplexing device
+
+
+
+flash led device node
+---------------------
+
+Following subnodes must be added to the LED Flash Class device
+tree node described in Documentation/devicetree/bindings/leds/common.txt.
+
+
+gate-software-strobe subnode
+----------------------------
+
+The node defines configuration of multiplexers that needs
+to be applied to route software strobe signal to the flash
+led device.
+
+Required properties:
+- mux		: phandle to the muxN node defined
+		  in the flash_muxes node
+- mux-line-id	: mux line identifier
+
+Optional subnodes:
+- gate-software-strobe : if there are many multiplexers to configure,
+			 they can be recursively nested.
+
+
+gate-external-strobeN subnode
+-----------------------------
+
+The node defines configuration of multiplexers that needs
+to be applied to route external strobe signal to the flash
+led device. A flash led device can have many external strobe
+signal sources.
+
+Required properties:
+- mux			: phandle to the muxN node defined
+			  in the flash_muxes node
+- mux-line-id		: mux line identifier
+Optional properties:
+- strobe-provider	: phandle to the device providing the
+			  strobe signal. It is expected only
+			  on the first level node. The referenced
+			  node is expected to have 'compatible'
+			  property, as providers are labelled
+			  with it in the LED subsystem
+
+Optional subnodes:
+- gate-external-strobeN	: if there are many multiplexers to configure,
+			  they can be recursively nested.
+
+
+Example:
+
+Following board configuration is assumed in this example:
+
+    ---------- ----------
+    | FLASH1 | | FLASH2 |
+    ---------- ----------
+           \(0)   /(1)
+          ----------
+          |  MUX1  |
+          ----------
+              |
+          ----------
+          |  MUX2  |
+          ----------
+           /(0)   \(1)
+      ----------  --------------------
+      |  MUX3  |  | SOC FLASHEN GPIO |
+      ----------  --------------------
+       /(0)   \(1)
+----------- -----------
+| SENSOR1 | | SENSOR2 |
+----------- -----------
+
+
+dummy_mux: led_mux {
+	compatible = "led-async-mux";
+};
+
+flash_muxes {
+	flash_mux1: mux1 {
+                gpios = <&gpj1 1 0>, <&gpj1 2 0>;
+	};
+
+	flash_mux2: mux2 {
+		mux-async = <&dummy_mux>;
+	};
+
+	flash_mux3: mux3 {
+                gpios = <&gpl1 1 0>, <&gpl1 2 0>;
+	};
+};
+
+max77693-flash {
+	compatible = "maxim,max77693-flash";
+
+	//other device specific properties here
+
+	gate-software-strobe {
+		mux = <&flash_mux1>;
+		mux-line-id = <0>;
+
+		gate-software-strobe {
+			mux = <&flash_mux2>;
+			mux-line-id = <1>;
+		};
+	};
+
+	gate-external-strobe1 {
+		strobe-provider = <&s5c73m3_spi>;
+		mux = <&flash_mux1>;
+		mux-line-id = <0>;
+
+		gate-external-strobe1 {
+			mux = <&flash_mux2>;
+			mux-line-id = <0>;
+
+			gate-external-strobe1 {
+				mux = <&flash_mux3>;
+				mux-line-id = <0>;
+			};
+		};
+	};
+
+	gate-external-strobe2 {
+		strobe-provider = <&s5k6a3>;
+		mux = <&flash_mux1>;
+		mux-line-id = <0>;
+
+		gate-external-strobe2 {
+			mux = <&flash_mux2>;
+			mux-line-id = <0>;
+
+			gate-external-strobe2 {
+				mux = <&flash_mux3>;
+				mux-line-id = <1>;
+			};
+		};
+	};
+};
