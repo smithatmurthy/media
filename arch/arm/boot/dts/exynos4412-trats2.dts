@@ -785,4 +785,28 @@
 		pulldown-ohm = <100000>; /* 100K */
 		io-channels = <&adc 2>;  /* Battery temperature */
 	};
+
+	flash_muxes {
+		flash_mux1: mux1 {
+			gpios = <&gpj1 0 0>;
+		};
+	};
+
+	aat1290 {
+		compatible = "skyworks,aat1290";
+		gpios = <&gpj1 1 0>, <&gpj1 2 0>;
+		flash-timeout = <1940000>;
+		status = "okay";
+
+		gate-software-strobe {
+			mux = <&flash_mux1>;
+			mux-line-id = <0>;
+		};
+
+		gate-external-strobe {
+			strobe-provider = <&s5c73m3_spi>;
+			mux = <&flash_mux1>;
+			mux-line-id = <1>;
+		};
+	};
 };
