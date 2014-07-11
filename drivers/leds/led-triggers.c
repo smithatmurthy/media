@@ -41,6 +41,11 @@ ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&led_cdev->led_lock);
 
+	if (led_sysfs_is_locked(led_cdev)) {
+		ret = -EBUSY;
+		goto exit_unlock;
+	}
+
 	trigger_name[sizeof(trigger_name) - 1] = '\0';
 	strncpy(trigger_name, buf, sizeof(trigger_name) - 1);
 	len = strlen(trigger_name);

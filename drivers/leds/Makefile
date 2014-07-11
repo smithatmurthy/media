@@ -2,6 +2,11 @@
 # LED Core
 obj-$(CONFIG_NEW_LEDS)			+= led-core.o
 obj-$(CONFIG_LEDS_CLASS)		+= led-class.o
+obj-$(CONFIG_LEDS_CLASS_FLASH)		+= led-flash.o
+led-flash-objs				:= led-class-flash.o \
+					   led-flash-manager.o \
+					   led-flash-gpio-mux.o \
+					   of_led_flash_manager.o
 obj-$(CONFIG_LEDS_TRIGGERS)		+= led-triggers.o
 
 # LED Platform Drivers
