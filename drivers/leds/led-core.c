@@ -126,3 +126,21 @@ void led_set_brightness(struct led_classdev *led_cdev,
 	__led_set_brightness(led_cdev, brightness);
 }
 EXPORT_SYMBOL(led_set_brightness);
+
+/* Caller must ensure led_cdev->led_lock held */
+void led_sysfs_lock(struct led_classdev *led_cdev)
+{
+	WARN_ON(!mutex_is_locked(&led_cdev->led_lock));
+
+	led_cdev->flags |= LED_SYSFS_LOCK;
+}
+EXPORT_SYMBOL_GPL(led_sysfs_lock);
+
+/* Caller must ensure led_cdev->led_lock held */
+void led_sysfs_unlock(struct led_classdev *led_cdev)
+{
+	WARN_ON(!mutex_is_locked(&led_cdev->led_lock));
+
+	led_cdev->flags &= ~LED_SYSFS_LOCK;
+}
+EXPORT_SYMBOL_GPL(led_sysfs_unlock);

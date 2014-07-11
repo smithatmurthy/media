@@ -13,6 +13,7 @@
 #define __LINUX_LEDS_H_INCLUDED
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/timer.h>
@@ -42,6 +43,7 @@ struct led_classdev {
 #define LED_BLINK_ONESHOT	(1 << 17)
 #define LED_BLINK_ONESHOT_STOP	(1 << 18)
 #define LED_BLINK_INVERT	(1 << 19)
+#define LED_SYSFS_LOCK		(1 << 20)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
@@ -85,6 +87,9 @@ struct led_classdev {
 	/* true if activated - deactivate routine uses it to do cleanup */
 	bool			activated;
 #endif
+
+	/* Ensures consistent access to the LED Flash Class device */
+	struct mutex		led_lock;
 };
 
 extern int led_classdev_register(struct device *parent,
@@ -140,6 +145,32 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
  */
 extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
+/**
+ * led_sysfs_lock - lock LED sysfs interface
+ * @led_cdev: the LED to set
+ *
+ * Lock the LED's sysfs interface
+ */
+extern void led_sysfs_lock(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_unlock - unlock LED sysfs interface
+ * @led_cdev: the LED to set
+ *
+ * Unlock the LED's sysfs interface
+ */
+extern void led_sysfs_unlock(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_is_locked
+ * @led_cdev: the LED to query
+ *
+ * Returns: true if the sysfs interface of the led is locked
+ */
+static inline bool led_sysfs_is_locked(struct led_classdev *led_cdev)
+{
+	return led_cdev->flags & LED_SYSFS_LOCK;
+}
 
 /*
  * LED Triggers
