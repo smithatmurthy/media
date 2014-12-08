@@ -59,7 +59,15 @@ static struct snd_soc_dai_link odroidx2_dai[] = {
 		.codec_dai_name	= "HiFi",
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBM_CFM,
-	}
+	}, {
+		.name		= "MAX98090 SEC",
+		.stream_name	= "MAX98090 PCM SEC",
+		.codec_dai_name	= "HiFi",
+		.cpu_dai_name	= "samsung-i2s-sec",
+		.platform_name	= "samsung-i2s-sec",
+		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				  SND_SOC_DAIFMT_CBM_CFM,
+	},
 };
 
 static struct snd_soc_card odroidx2 = {
@@ -135,6 +143,7 @@ static int odroidx2_audio_probe(struct platform_device *pdev)
 	odroidx2_dai[0].codec_of_node = codec_node;
 	odroidx2_dai[0].cpu_of_node = i2s_node;
 	odroidx2_dai[0].platform_of_node = i2s_node;
+	odroidx2_dai[1].codec_of_node = codec_node;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -159,6 +168,7 @@ static int odroidx2_audio_remove(struct platform_device *pdev)
 
 	of_node_put((struct device_node *)odroidx2_dai[0].cpu_of_node);
 	of_node_put((struct device_node *)odroidx2_dai[0].codec_of_node);
+	of_node_put((struct device_node *)odroidx2_dai[1].codec_of_node);
 
 	return 0;
 }
