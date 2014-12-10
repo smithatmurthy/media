@@ -34,12 +34,26 @@ Required SoC Specific Properties:
   clk. i2s0 has internal mux to select the source of root clk and i2s1 and i2s2
   doesn't have any such mux.
 
-Optional SoC Specific Properties:
+Optional Properties:
 
 - samsung,idma-addr: Internal DMA register base address of the audio
   sub system(used in secondary sound source).
 - pinctrl-0: Should specify pin control groups used for this controller.
 - pinctrl-names: Should contain only one value - "default".
+- #clock-cells: should be 1, this property must be present if the I2S device
+  is a clock provider in terms of the common clock bindings, described in
+  ../clock/clock-bindings.txt.
+- clock-output-names: from the common clock bindings, names of the CDCLK
+  I2S output clocks, suggested values are "i2s_cdclk0", "i2s_cdclk1",
+  "i2s_cdclk3" for the I2S0, I2S1, I2S2 devices recpectively.
+
+The assignment of indices for the I2Sx clock provider is as follows:
+ 0 - the CDCLK (CODECLKO) gate clock,
+ 1 - the RCLK prescaler divider clock (corresponding to the IISPSR register),
+ 2 - the RCLKSRC mux clock (corresponding to RCLKSRC bit in register IISMOD).
+
+Clocks 1, 2 are normally only available in the IIS Mutli Audio Interface (I2S0).
+
 
 Example:
 
@@ -54,6 +68,8 @@ i2s0: i2s@03830000 {
 		<&clock_audss EXYNOS_I2S_BUS>,
 		<&clock_audss EXYNOS_SCLK_I2S>;
 	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+	#clock-cells;
+	clock-output-names = "i2s_cdclk0";
 	samsung,idma-addr = <0x03000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_bus>;
