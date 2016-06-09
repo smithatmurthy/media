@@ -1,0 +1,22 @@
+Maxim MAX98504 class D mono speaker amplifier
+
+This device supports I2C control interface and an IRQ output signal. It features
+a PCM and PDM digital audio interface (DAI) and a differential analog input.
+
+Required properties:
+
+ - compatible : "maxim,max98504"
+ - reg : should contain the I2C slave device address
+ - DVDD-supply, DIOVDD-supply, PVDD-supply: power supplies for the device,
+   as covered in Documentation/devicetree/bindings/regulator/regulator.txt
+
+Example:
+
+ max98504: max98504@31 {
+	compatible = "maxim,max98504";
+	reg = <0x31>;
+
+	DVDD-supply = <&regulator>;
+	DIOVDD-supply = <&regulator>;
+	PVDD-supply = <&regulator>;
+};
