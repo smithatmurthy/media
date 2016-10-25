@@ -2307,6 +2307,9 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 			ret = -EINVAL;
 			goto out_no_platdata;
 		}
+	} else {
+		pl08x->slave.filter.map = pl08x->pd->slave_map;
+		pl08x->slave.filter.mapcnt = pl08x->pd->slave_map_len;
 	}
 
 	/* By default, AHB1 only.  If dualmaster, from platform */
