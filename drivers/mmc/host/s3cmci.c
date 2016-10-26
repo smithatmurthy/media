@@ -28,7 +28,6 @@
 #include <mach/dma.h>
 #include <mach/gpio-samsung.h>
 
-#include <linux/platform_data/dma-s3c24xx.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 
 #include "s3cmci.h"
@@ -1685,13 +1684,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	/* depending on the dma state, get a dma channel to use. */
 
 	if (s3cmci_host_usedma(host)) {
-		dma_cap_mask_t mask;
-
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-
-		host->dma = dma_request_slave_channel_compat(mask,
-			s3c24xx_dma_filter, (void *)DMACH_SDI, &pdev->dev, "rx-tx");
+		host->dma = dma_request_slave_channel(&pdev->dev, "rx-tx");
 		if (!host->dma) {
 			dev_err(&pdev->dev, "cannot get DMA channel.\n");
 			ret = -EBUSY;
