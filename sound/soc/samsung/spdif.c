@@ -366,14 +366,6 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spdif_pdata = pdev->dev.platform_data;
 
-	dev_dbg(&pdev->dev, "Entered %s\n", __func__);
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(&pdev->dev, "Unable to get register resource.\n");
-		return -ENXIO;
-	}
-
 	if (spdif_pdata && spdif_pdata->cfg_gpio
 			&& spdif_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure GPIO pins\n");
@@ -385,11 +377,15 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spin_lock_init(&spdif->lock);
 
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	spdif->regs = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(spdif->regs))
+		return PTR_ERR(spdif->regs);
+
 	spdif->pclk = devm_clk_get(&pdev->dev, "spdif");
 	if (IS_ERR(spdif->pclk)) {
 		dev_err(&pdev->dev, "failed to get peri-clock\n");
-		ret = -ENOENT;
-		goto err0;
+		return PTR_ERR(spdif->pclk);
 	}
 	clk_prepare_enable(spdif->pclk);
 
@@ -397,24 +393,9 @@ static int spdif_probe(struct platform_device *pdev)
 	if (IS_ERR(spdif->sclk)) {
 		dev_err(&pdev->dev, "failed to get internal source clock\n");
 		ret = -ENOENT;
-		goto err1;
+		goto err_dis_pclk;
 	}
 	clk_prepare_enable(spdif->sclk);
-
-	/* Request S/PDIF Register's memory region */
-	if (!request_mem_region(mem_res->start,
-				resource_size(mem_res), "samsung-spdif")) {
-		dev_err(&pdev->dev, "Unable to request register region\n");
-		ret = -EBUSY;
-		goto err2;
-	}
-
-	spdif->regs = ioremap(mem_res->start, 0x100);
-	if (spdif->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap registers\n");
-		ret = -ENXIO;
-		goto err3;
-	}
 
 	spdif_stereo_out.addr_width = 2;
 	spdif_stereo_out.addr = mem_res->start + DATA_OUTBUF;
@@ -429,7 +410,7 @@ static int spdif_probe(struct platform_device *pdev)
 						 NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
-		goto err4;
+		goto err_dis_sclk;
 	}
 
 	dev_set_drvdata(&pdev->dev, spdif);
@@ -438,32 +419,21 @@ static int spdif_probe(struct platform_device *pdev)
 			&samsung_spdif_component, &samsung_spdif_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "fail to register dai\n");
-		goto err4;
+		goto err_dis_sclk;
 	}
 
 	return 0;
-err4:
-	iounmap(spdif->regs);
-err3:
-	release_mem_region(mem_res->start, resource_size(mem_res));
-err2:
+
+err_dis_sclk:
 	clk_disable_unprepare(spdif->sclk);
-err1:
+err_dis_pclk:
 	clk_disable_unprepare(spdif->pclk);
-err0:
 	return ret;
 }
 
 static int spdif_remove(struct platform_device *pdev)
 {
 	struct samsung_spdif_info *spdif = &spdif_info;
-	struct resource *mem_res;
-
-	iounmap(spdif->regs);
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res)
-		release_mem_region(mem_res->start, resource_size(mem_res));
 
 	clk_disable_unprepare(spdif->sclk);
 	clk_disable_unprepare(spdif->pclk);
